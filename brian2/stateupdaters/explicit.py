@@ -172,7 +172,7 @@ class ExplicitStateUpdater(StateUpdateMethod):
     ----------
     description : str
         A state updater description (see above).
-    stochastic : {None, 'additive', 'multiplicative'}
+    stochastic : {None, 'additive', 'multiplicative'}, optional
         What kind of stochastic equations this state updater supports: ``None``
         means no support of stochastic equations, ``'additive'`` means only
         equations with additive noise and ``'multiplicative'`` means
@@ -418,11 +418,11 @@ class ExplicitStateUpdater(StateUpdateMethod):
         eqs : `Equations`
             The equations describing the model
         
-        namespace: dict-like, optional
+        namespace : dict-like, optional
             The namespace used for resolving external identifiers. Ignored
             by the explicit state updater.
         
-        specifiers: dict-like, optional
+        specifiers : dict-like, optional
             The `Specifier` objects for the model. Ignored by the explicit
             state updater.
         
