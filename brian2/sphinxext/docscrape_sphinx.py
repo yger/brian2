@@ -28,7 +28,7 @@ class SphinxDocString(NumpyDocString):
         return self['Summary'] + ['']
 
     def _str_extended_summary(self):
-        return self['Extended Summary'] + ['']
+        return self['Extended summary'] + ['']
 
     def _str_param_list(self, name):
         out = []
@@ -61,7 +61,7 @@ class SphinxDocString(NumpyDocString):
 
         
         
-        for name in ['Attributes', 'Methods']:
+        for name in ['Instance attributes', 'Class attributes', 'Methods']:
             if not self[name]:
                 continue
             
@@ -72,23 +72,8 @@ class SphinxDocString(NumpyDocString):
                 prefix = '%s.' % prefix
 
             autosum = []
-            for param, _, desc in self[name]:
+            for param, _, _ in self[name]:
                 param = param.strip()
-                if self._obj:
-                    # Fake the attribute as a class property, but do not touch
-                    # methods
-                    if (hasattr(self._obj, '__module__') and not 
-                        (hasattr(self._obj, param) and callable(getattr(self._obj, param)))):
-
-                        # Do not override directly provided docstrings
-                        if not len(''.join(desc).strip()):
-                            analyzer = ModuleAnalyzer.for_module(self._obj.__module__)
-                            desc = analyzer.find_attr_docs().get((self._obj.__name__, param), '')
-                            
-                        # Only fake a property if we got a docstring
-                        if len(''.join(desc).strip()):
-                            setattr(self._obj, param, property(lambda self: None,
-                                                               doc='\n'.join(desc)))
 
                 if len(prefix):
                     autosum += ["   ~%s%s" % (prefix, param)]
@@ -118,8 +103,11 @@ class SphinxDocString(NumpyDocString):
             for param, _, _ in self[name]:
                 if name == 'Methods':
                     out += ['.. automethod:: %s%s' % (prefix, param)]
-                elif name == 'Attributes':
+                elif name == 'Instance attributes':
+                    out += ['.. autoinstanceattribute:: %s%s' % (prefix, param)]
+                elif name == 'Class attributes':
                     out += ['.. autoattribute:: %s%s' % (prefix, param)]
+            
             
             out += ['']
         return out
@@ -136,7 +124,7 @@ class SphinxDocString(NumpyDocString):
 
     def _str_see_also(self, func_role):
         out = []
-        if self['See Also']:
+        if self['See also']:
             see_also = super(SphinxDocString, self)._str_see_also(func_role)
             out = ['.. seealso::', '']
             out += self._str_indent(see_also[2:])
@@ -207,7 +195,7 @@ class SphinxDocString(NumpyDocString):
         out += self._str_index() + ['']
         out += self._str_summary()
         out += self._str_extended_summary()
-        for param_list in ('Parameters', 'Returns', 'Other Parameters'):
+        for param_list in ('Parameters', 'Returns', 'Other parameters'):
             out += self._str_param_list(param_list)
         for param_list in ('Raises', 'Warns'):
             out += self._str_raises(param_list, func_role)
@@ -217,9 +205,9 @@ class SphinxDocString(NumpyDocString):
         out += self._str_references()
         out += self._str_examples()
         out += self._str_member_list()
-        if self['Attributes'] + self['Methods']:
+        if self['Instance attributes'] + self['Class attributes'] + self['Methods']:
             out += ['.. rubric:: Details', '']
-            for param_list in ('Attributes', 'Methods'):
+            for param_list in ('Instance attributes', 'Class attributes', 'Methods'):
                 out += self._str_member_docs(param_list)
         out = self._str_indent(out, indent)
         return '\n'.join(out)

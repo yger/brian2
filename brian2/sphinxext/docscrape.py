@@ -92,15 +92,16 @@ class NumpyDocString(object):
         self._parsed_data = {
             'Signature': '',
             'Summary': [''],
-            'Extended Summary': [],
+            'Extended summary': [],
             'Parameters': [],
             'Returns': [],
             'Raises': [],
             'Warns': [],
-            'Other Parameters': [],
-            'Attributes': [],
+            'Other parameters': [],
+            'Instance attributes': [],
+            'Class attributes': [],
             'Methods': [],
-            'See Also': [],
+            'See also': [],
             'Notes': [],
             'Warnings': [],
             'References': '',
@@ -279,7 +280,7 @@ class NumpyDocString(object):
             self['Summary'] = summary
 
         if not self._is_at_section():
-            self['Extended Summary'] = self._read_to_next_section()
+            self['Extended summary'] = self._read_to_next_section()
 
     def _parse(self):
         self._doc.reset()
@@ -287,14 +288,15 @@ class NumpyDocString(object):
 
         for (section, content) in self._read_sections():
             if not section.startswith('..'):
-                section = ' '.join([s.capitalize() for s in section.split(' ')])
+                section = section.capitalize()
             if section in ('Parameters', 'Returns', 'Raises', 'Warns',
-                           'Other Parameters', 'Attributes', 'Methods'):
+                           'Other parameters', 'Instance attributes',
+                           'Class attributes', 'Methods'):
                 self[section] = self._parse_param_list(content)
             elif section.startswith('.. index::'):
                 self['index'] = self._parse_index(section, content)
-            elif section == 'See Also':
-                self['See Also'] = self._parse_see_also(content)
+            elif section == 'See also':
+                self['See also'] = self._parse_see_also(content)
             else:
                 self[section] = content
 
@@ -322,8 +324,8 @@ class NumpyDocString(object):
             return []
 
     def _str_extended_summary(self):
-        if self['Extended Summary']:
-            return self['Extended Summary'] + ['']
+        if self['Extended summary']:
+            return self['Extended summary'] + ['']
         else:
             return []
 
@@ -346,12 +348,12 @@ class NumpyDocString(object):
         return out
 
     def _str_see_also(self, func_role):
-        if not self['See Also']:
+        if not self['See also']:
             return []
         out = []
-        out += self._str_header("See Also")
+        out += self._str_header("See also")
         last_had_desc = True
-        for func, desc, role in self['See Also']:
+        for func, desc, role in self['See also']:
             if role:
                 link = ':%s:`%s`' % (role, func)
             elif func_role:
@@ -386,14 +388,14 @@ class NumpyDocString(object):
         out += self._str_signature()
         out += self._str_summary()
         out += self._str_extended_summary()
-        for param_list in ('Parameters', 'Returns', 'Other Parameters',
+        for param_list in ('Parameters', 'Returns', 'Other parameters',
                            'Raises', 'Warns'):
             out += self._str_param_list(param_list)
         out += self._str_section('Warnings')
         out += self._str_see_also(func_role)
         for s in ('Notes', 'References', 'Examples'):
             out += self._str_section(s)
-        for param_list in ('Attributes', 'Methods'):
+        for param_list in ('Instance attributes', 'Class attributes', 'Methods'):
             out += self._str_param_list(param_list)
         out += self._str_index()
         return '\n'.join(out)
@@ -487,31 +489,70 @@ class ClassDoc(NumpyDocString):
         if not self['Methods']:
             self['Methods'] = [(name, '', '')
                                for name in sorted(self.methods)]
-        if not self['Attributes']:
-            self['Attributes'] = [(name, '', '')
-                                  for name in sorted(self.properties)]
+        if not self['Instance attributes']:
+            self['Instance attributes'] = [(name, '', '')
+                                  for name in sorted(self.instance_members)]
+        if not self['Class attributes']:
+            self['Class attributes'] = [(name, '', '')
+                                  for name in sorted(self.class_members)]            
+
+# Class attributes: Documented and in __dict__
+# Instance attributes: Documented and not in __dict__
+# Properties: Not documented, in __dict__, datadescriptor
+# Static methods: Not documented, in __dict__, method descriptor
+# Instance methods: Not documented, in __dict__, callable 
+
+    @property
+    def attributes(self):
+        if self._cls is None:
+            return set()
+        
+        analyzer = ModuleAnalyzer.for_module(self._cls.__module__)
+        return set([attr_name for (class_name, attr_name) in
+                    analyzer.find_attr_docs().keys()
+                    if class_name == self._cls.__name__])
 
     @property
     def methods(self):
         if self._cls is None:
             return [] 
-        methods = [name for name, func in getattr(self._cls, '__dict__').iteritems()
-                  if ((not name.startswith('_')
-                       or name in self.extra_public_methods)
-                      and (callable(func) or
-                           inspect.ismethoddescriptor(func)))]
-        return methods
+        # Note: We don't make a distinction between static and instance
+        # methods for now
+        
+        # We need the "attribute members", i.e. the members documented using
+        # the special syntax, to distinguish a class attribute referring to
+        # a function from a method -- even though Python itself doesn't make
+        # this difference (a method is just a class attribute with "self" as
+        # first argument
+        attributes = self.attributes
+        methods = set([name for name, func in getattr(self._cls, '__dict__').iteritems()
+                       if ((not name.startswith('_')
+                            or name in self.extra_public_methods)
+                           and (callable(func) or
+                                inspect.ismethoddescriptor(func)))])
+        # In some rare cases, a class attribute may refer to a function. If it
+        # is annotated with the special attribute syntax, we do not want to
+        # treat this as a static function.
+        return methods - attributes
 
     @property
-    def properties(self):
+    def instance_members(self):
         if self._cls is None:
-            return []
-        analyzer = ModuleAnalyzer.for_module(self._cls.__module__)
-        instance_members = set([attr_name for (class_name, attr_name) in
-                            analyzer.find_attr_docs().keys()
-                            if class_name == self._cls.__name__])
-        class_members = set([name for name, func in getattr(self._cls, '__dict__').iteritems()
-                         if not name.startswith('_') and (func is None or
-                                                          inspect.isdatadescriptor(func))])
-
-        return instance_members | class_members
+            return set()
+        
+        attributes = self.attributes
+        properties = set([name for name, func in getattr(self._cls, '__dict__').iteritems()
+                          if not name.startswith('_') and inspect.isdatadescriptor(func)])
+        return (attributes - self.class_members | properties)        
+    
+    @property
+    def class_members(self):
+        if self._cls is None:
+            return set()
+        
+        attributes = self.attributes
+        class_members =  set([name for name in getattr(self._cls, '__dict__').iterkeys()
+                              if not name.startswith('_')])
+        # Class attributes are both documented using the special syntax and in
+        # the class's __dict__:        
+        return attributes.intersection(class_members)

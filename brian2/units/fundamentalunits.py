@@ -770,8 +770,8 @@ class Quantity(np.ndarray, object):
     --------
     Unit
 
-    Attributes
-    ----------
+    Instance attributes
+    -------------------
     dimensions
     is_dimensionless
     dim : Dimensions
@@ -1565,8 +1565,8 @@ class Unit(Quantity):
     don't like the automatically generated name, use the
     `Unit.set_display_name` method.
 
-    Attributes
-    ----------
+    Instance attributes
+    -------------------
     dim
     scale
     scalefactor
