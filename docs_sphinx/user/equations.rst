@@ -211,7 +211,7 @@ Equation objects
 .. doctest::
 
 	>>> eqs = Equations('dv/dt = mu/tau + sigma/tau**.5*xi : volt',
-	                    mu = -65*mV, sigma=3*mV, tau=10*ms)
+	...                 mu=-62.5*mV, sigma=3*mV, tau=10*ms)
 	>>> print eqs
-	dv/dt = (-0.065 * volt)/(10.0 * msecond) + (3.0 * mvolt)/(10.0 * msecond)**.5*xi  : V
+	dv/dt = (-0.0625 * volt)/(10.0 * msecond) + (3.0 * mvolt)/(10.0 * msecond)**.5*xi  : V
 

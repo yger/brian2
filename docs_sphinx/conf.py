@@ -42,6 +42,12 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'brian2.sphinxext.briandoc',
               'sphinx.ext.autosummary']
 
+doctest_global_setup = '''
+from brian2 import *
+'''
+
+# Only test explicit doctest blocks
+doctest_test_doctest_blocks = ''
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
