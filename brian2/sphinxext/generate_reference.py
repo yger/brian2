@@ -42,7 +42,8 @@ def format_heading(level, text):
     return '%s\n%s\n\n' % (text, underlining)
 
 
-def format_directive(module, destdir, package=None, basename='brian2'):
+def format_directive(module, destdir, package=None, basename='brian2',
+                     toctree=True):
     """Create the automodule directive and add the options."""
     directive = '.. automodule:: %s\n' % makename(package, module)
     for option in OPTIONS:
@@ -73,28 +74,45 @@ def format_directive(module, destdir, package=None, basename='brian2'):
         directive += '**Classes**\n\n'
         for member, member_obj in classes:
             directive += '.. autosummary:: %s\n' % (member)
-            directive += '    :toctree:\n\n'
-            create_member_file(full_name, member, member_obj, destdir)
+            if toctree:
+                directive += '    :toctree:\n\n'
+            else:
+                directive += '\n'
+            create_member_file(full_name, member, member_obj, destdir, toctree)
     if functions:
         directive += '**Functions**\n\n'
         for member, member_obj in functions:
             directive += '.. autosummary:: %s\n' % (member)
-            directive += '    :toctree:\n\n'
-            create_member_file(full_name, member, member_obj, destdir)
+            if toctree:
+                directive += '    :toctree:\n\n'
+            else:
+                directive += '\n'                
+            create_member_file(full_name, member, member_obj, destdir, toctree)
     if variables:
         directive += '**Objects**\n\n'
         for member, member_obj in variables:
             directive += '.. autosummary:: %s\n' % (member)
-            directive += '    :toctree:\n\n'
-            create_member_file(full_name, member, member_obj, destdir)
+            if toctree:
+                directive += '    :toctree:\n\n'
+            else:
+                directive += '\n'                
+            create_member_file(full_name, member, member_obj, destdir, toctree)
                 
     return directive
 
 
-def create_member_file(module_name, member, member_obj, destdir, suffix='rst'):
+def create_member_file(module_name, member, member_obj, destdir, toctree,
+                       suffix='rst'):
     """Build the text of the file and write the file."""
     
-    text = '.. currentmodule:: ' + module_name + '\n\n'
+    if not toctree:
+        # Suppress warnings about documents that are not included in any
+        # doctree if we specifically asked for it in the first place
+        text = ':orphan:\n\n'
+    else:
+        text = ''
+
+    text += '.. currentmodule:: ' + module_name + '\n\n'
     
     if inspect.isclass(member_obj):
         text += format_heading(1, '%s class' % member)
@@ -125,8 +143,15 @@ def create_package_file(root, master_package, subroot, py_files, subs,
         if not is_package:
             heading = ':mod:`%s` module' % py_file
             text += format_heading(2, heading)
+        
+        # We don't want functions directly declared in a package to appear in
+        # its toctree -- otherwiese restore_initial_state would appear on the
+        # reference overview as it is defined in brian2.__init__
+        # We don't have any code (except for imports) in packages anywhere
+        # except in the top-level brian2 package, so this is a special case
+        toctree = not is_package
         text += format_directive(is_package and subroot or py_path, destdir,
-                                 master_package)
+                                 master_package, toctree=toctree)
         text += '\n'
 
     # build a list of directories that are packages (contain an INITPY file)
