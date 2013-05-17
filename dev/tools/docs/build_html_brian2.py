@@ -1,11 +1,9 @@
 import os
-import shutil
-import sphinx
 import sys
 
+import sphinx
+
 os.chdir('../../../docs_sphinx')
-if os.path.exists('../docs'):
-    shutil.rmtree('../docs')
  
 print '** Building docs **'
 exit_code = sphinx.main(['sphinx-build', '-b', 'html', '.', '../docs'])
