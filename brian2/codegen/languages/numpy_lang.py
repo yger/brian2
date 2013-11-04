@@ -1,15 +1,60 @@
+import ast
 import itertools
 
 import numpy as np
 
-from brian2.utils.stringtools import word_substitute
-from brian2.parsing.rendering import NumpyNodeRenderer
+from brian2.utils.stringtools import word_substitute, get_identifiers
+from brian2.parsing.rendering import NodeRenderer, NumpyNodeRenderer
+from brian2.codegen.statements import Statement
 from brian2.core.functions import (DEFAULT_FUNCTIONS, Function,
                                    FunctionImplementation)
 
 from .base import Language
 
 __all__ = ['NumpyLanguage']
+
+
+def rewrite_for_ufunc_at(statements, indices, repeated_indices):
+    '''
+    Arguments
+    ---------
+    statements: list of Statement
+    indices: dict of (var_name, index_name)
+    repeated_indices: set of index names which have repeated indices in them
+    
+    Returns
+    -------
+    statements: list of Statement
+    success: boolean
+    '''
+    #return statements, False # uncomment this to temporarily switch it off
+    new_statements = []
+    renderer = NodeRenderer()
+    for statement in statements:
+        if statement.var in indices and indices[statement.var] in repeated_indices:
+            if statement.op!='=' and statement.op!='+=':
+                # todo: raise a warning
+                return statements, False
+            if statement.op=='=':
+                # try to rewrite as '+='
+                parsed_expr = ast.parse(statement.expr, mode='eval').body
+                if parsed_expr.__class__.__name__=='BinOp' and parsed_expr.op.__class__.__name__=='Add':
+                    vals = [parsed_expr.left, parsed_expr.right]
+                    vals = map(renderer.render_node, vals)
+                    if statement.var in vals:
+                        # hurrah, we can do the rewrite
+                        vals = [val for val in vals if val!=statement.var]
+                        statement = Statement(statement.var, '+=', vals[0], statement.dtype)
+                    else:
+                        return statements, False
+                else:
+                    return statements, False
+            assert statement.op=='+='
+            if statement.var in get_identifiers(statement.expr):
+                # todo: raise a warning
+                return statements, False
+        new_statements.append(statement)
+    return new_statements, True
 
 
 class NumpyLanguage(Language):
@@ -21,32 +66,52 @@ class NumpyLanguage(Language):
 
     language_id = 'numpy'
 
-    def translate_expression(self, expr, namespace, codeobj_class):
+    def translate_expression(self, expr, namespace, codeobj_class, repeated_indices={}, variables=None):
         for varname, var in namespace.iteritems():
             if isinstance(var, Function):
                 impl_name = var.implementations[codeobj_class].name
                 if impl_name is not None:
                     expr = word_substitute(expr, {varname: impl_name})
-        return NumpyNodeRenderer().render_expr(expr, namespace).strip()
+        expr = NumpyNodeRenderer().render_expr(expr, namespace).strip()
+        if variables is not None:
+            for var, idx in repeated_indices.iteritems():
+                expr = word_substitute(expr, {var: '{var}[{idx}]'.format(var=variables[var].arrayname,
+                                                                         idx=idx)})
+        return expr
 
-    def translate_statement(self, statement, namespace, codeobj_class):
+    def translate_statement(self, statement, namespace, codeobj_class,
+                            repeated_indices={}, variables=None):
         # TODO: optimisation, translate arithmetic to a sequence of inplace
         # operations like a=b+c -> add(b, c, a)
         var, op, expr = statement.var, statement.op, statement.expr
         if op == ':=':
             op = '='
-        return var + ' ' + op + ' ' + self.translate_expression(expr,
-                                                                namespace,
-                                                                codeobj_class)
+        expr = self.translate_expression(expr, namespace, codeobj_class, repeated_indices=repeated_indices)
+        if var in repeated_indices and op=='+=':
+            return '_np.add.at({varname}, {indices}, {expr})'.format(varname=var, expr=expr, variables=variables,
+                                                                     indices=repeated_indices[var])
+        else:
+            return var + ' ' + op + ' ' + expr
 
     def translate_one_statement_sequence(self, statements, variables, namespace,
                                          variable_indices, iterate_all,
                                          codeobj_class):
         read, write, indices = self.array_read_write(statements, variables,
                                             variable_indices)
+        repeated_indices = {}
         lines = []
+        # todo: refactor the API to avoid this hack to recognise the 'synapses' template
+        if '_spiking_synapses' in variable_indices:
+            prepost_idx = set(['_postsynaptic_idx', '_presynaptic_idx'])
+            # we should try to do the ufunc.at optimisation
+            statements, success = rewrite_for_ufunc_at(statements, variable_indices, prepost_idx)
+            if success:
+                repeated_indices = dict((var, idx) for var, idx in variable_indices.iteritems() if idx in prepost_idx)
+                lines.append('# USE_UFUNC_AT') # another hacky hack
         # index and read arrays (index arrays first)
         for var in itertools.chain(indices, read):
+            if var in repeated_indices:
+                continue
             spec = variables[var]
             index = variable_indices[var]
             line = var + ' = ' + spec.arrayname
@@ -54,10 +119,14 @@ class NumpyLanguage(Language):
                 line = line + '[' + index + ']'
             lines.append(line)
         # the actual code
-        lines.extend([self.translate_statement(stmt, namespace, codeobj_class)
+        lines.extend([self.translate_statement(stmt, namespace, codeobj_class,
+                                               repeated_indices=repeated_indices,
+                                               variables=variables)
                       for stmt in statements])
         # write arrays
         for var in write:
+            if var in repeated_indices:
+                continue
             index_var = variable_indices[var]
             # check if all operations were inplace and we're operating on the
             # whole vector, if so we don't need to write the array back
