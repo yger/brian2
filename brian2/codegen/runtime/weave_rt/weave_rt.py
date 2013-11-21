@@ -29,7 +29,6 @@ brian_prefs.register_preferences(
     'Weave runtime codegen preferences',
     compiler = BrianPreference(
         default='gcc',
-        validator=lambda pref: pref=='gcc',
         docs='''
         Compiler to use for weave.
         '''

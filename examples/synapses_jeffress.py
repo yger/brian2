@@ -14,7 +14,10 @@ import matplotlib.pyplot as plt
 
 from brian2 import *
 
-# brian_prefs.codegen.target = 'weave'
+brian_prefs.codegen.target = 'weave'
+brian_prefs['codegen.runtime.weave.compiler'] = 'msvc'
+brian_prefs['codegen.runtime.weave.extra_compile_args'] = []#'/O2', '/fp:fast']
+brian_prefs['codegen.languages.cpp.restrict_keyword'] = '__restrict'
 
 defaultclock.dt = .02 * ms
 dt = defaultclock.dt

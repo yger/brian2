@@ -114,9 +114,15 @@ class CPPLanguage(Language):
     language_id = 'cpp'
 
     def __init__(self, c_data_type=c_data_type):
-        self.restrict = brian_prefs['codegen.languages.cpp.restrict_keyword'] + ' '
-        self.flush_denormals = brian_prefs['codegen.languages.cpp.flush_denormals']
         self.c_data_type = c_data_type
+        
+    @property
+    def restrict(self):
+        return brian_prefs['codegen.languages.cpp.restrict_keyword'] + ' '
+
+    @property
+    def flush_denormals(self):
+        return brian_prefs['codegen.languages.cpp.flush_denormals']
 
     def translate_expression(self, expr, namespace, codeobj_class):
         for varname, var in namespace.iteritems():
