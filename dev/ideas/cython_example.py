@@ -8,12 +8,12 @@ from brian2 import *
 import time
 
 #brian_prefs.codegen.target = 'weave'
-#brian_prefs.codegen.target = 'cython'
-brian_prefs.codegen.target = 'numpy'
+brian_prefs.codegen.target = 'cython'
+#brian_prefs.codegen.target = 'numpy'
 BrianLogger.log_level_debug()
 
 tau = 20 * ms
-N = 100
+N = 10000
 b = 1.2 # constant current mean, the modulation varies
 freq = 10 * Hz
 
@@ -30,6 +30,7 @@ neurons.a = linspace(.05, 0.75, N)
 #S = SpikeMonitor(neurons)
 #trace = StateMonitor(neurons, 'v', record=50)
 
+run(1*ms)
 start = time.time()
 run(10 * ms)
 print time.time()-start
