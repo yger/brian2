@@ -146,7 +146,7 @@ class NodeRenderer(object):
         return '%s %s %s' % (target, op, rhs)
 
 
-class NumpyNodeRenderer(NodeRenderer):           
+class NumpyNodeRenderer(NodeRenderer):
     expression_ops = NodeRenderer.expression_ops.copy()
     expression_ops.update({
           # Unary ops
