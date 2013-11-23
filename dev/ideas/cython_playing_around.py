@@ -6,7 +6,7 @@ import numpy
 from scipy import weave
 
 tau = 20 * 0.001
-N = 100000
+N = 1000000
 b = 1.2 # constant current mean, the modulation varies
 freq = 10.0
 t = 0.0
@@ -26,6 +26,10 @@ cdef int _idx
 cdef int _vectorisation_idx
 cdef int N = <int>_N
 cdef double a, v, _v
+#cdef double [:] _cy_array_neurongroup_a = _array_neurongroup_a
+#cdef double [:] _cy_array_neurongroup_v = _array_neurongroup_v
+cdef double* _cy_array_neurongroup_a = &(_array_neurongroup_a[0])
+cdef double* _cy_array_neurongroup_v = &(_array_neurongroup_v[0])
 for _idx in range(N):
     _vectorisation_idx = _idx
     a = _array_neurongroup_a[_idx]
@@ -77,10 +81,24 @@ def dotimeit(f):
                         timeit.timeit(f.__name__+'()', setup='from __main__ import '+f.__name__, number=100)) 
 
 if __name__=='__main__':
-    #dotimeit(timefunc_cython_inline)
-    dotimeit(timefunc_cython_modified_inline)
-    #dotimeit(timefunc_python)
-    dotimeit(timefunc_numpy)
-    dotimeit(timefunc_weave)
-    
-     
+    if 0:
+        # check accuracy
+        v[:] = 1
+        timefunc_weave()
+        print v[:5]
+        v[:] = 1
+        timefunc_cython_inline()
+        print v[:5]
+        v[:] = 1
+        timefunc_numpy()
+        print v[:5]
+    if 1:
+        #dotimeit(timefunc_cython_inline)
+        v[:] = 1
+        dotimeit(timefunc_cython_modified_inline)
+        #dotimeit(timefunc_python)
+        v[:] = 1
+        dotimeit(timefunc_numpy)
+        v[:] = 1
+        dotimeit(timefunc_weave)
+        

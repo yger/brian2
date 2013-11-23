@@ -85,10 +85,15 @@ def modified_cython_inline(
             module_code = """
 #cython: boundscheck=False
 #cython: wraparound=False
+#cython: cdivision=True
 %(module_body)s
 %(cimports)s
 #import numpy
 from libc.math cimport sin, exp
+import cython
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
 def __invoke(%(params)s):
 %(func_body)s
             """ % {'cimports': '\n'.join(cimports), 'module_body': module_body, 'params': params, 'func_body': func_body }
@@ -105,7 +110,9 @@ def __invoke(%(params)s):
                 name = module_name,
                 sources = [pyx_file],
                 include_dirs = c_include_dirs,
-                extra_compile_args = cflags)
+                #extra_compile_args = cflags,
+                extra_compile_args = ['-O3', '-ffast-math', '-march=native'],
+                )
             if build_extension is None:
                 build_extension = _get_build_extension()
             build_extension.extensions = cythonize([extension], include_path=cython_include_dirs, quiet=quiet)
