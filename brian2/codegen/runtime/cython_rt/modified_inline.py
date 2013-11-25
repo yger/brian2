@@ -99,7 +99,7 @@ def __invoke(%(params)s):
             """ % {'cimports': '\n'.join(cimports), 'module_body': module_body, 'params': params, 'func_body': func_body }
             for key, value in literals.items():
                 module_code = module_code.replace(key, value)
-            print module_code
+#            print module_code
             pyx_file = os.path.join(lib_dir, module_name + '.pyx')
             fh = open(pyx_file, 'w')
             try: 

@@ -32,13 +32,13 @@ cdef double* _cy_array_neurongroup_a = &(_array_neurongroup_a[0])
 cdef double* _cy_array_neurongroup_v = &(_array_neurongroup_v[0])
 for _idx in range(N):
     _vectorisation_idx = _idx
-    a = _array_neurongroup_a[_idx]
-    v = _array_neurongroup_v[_idx]
+    a = _cy_array_neurongroup_a[_idx]
+    v = _cy_array_neurongroup_v[_idx]
     _v = a*sin(2.0*freq*pi*t) + b + v*exp(-dt/tau) + (-a*sin(2.0*freq*pi*t) - b)*exp(-dt/tau)
     #_v = a*b+0.0001*sin(v)
     #_v = a*b+0.0001*v 
     v = _v
-    _array_neurongroup_v[_idx] = v
+    _cy_array_neurongroup_v[_idx] = v
 '''
 def timefunc_cython_inline():
     cython.inline(code, locals=ns)
