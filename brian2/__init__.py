@@ -73,20 +73,20 @@ from brian2.core.core_preferences import *
 brian_prefs.load_preferences()
 brian_prefs.do_validation()
 
-brian_prefs._backup()
+brian_prefs.backup()
 
 def restore_initial_state():
     '''
     Restores internal Brian variables to the state they are in when Brian is imported
     
     Resets ``defaultclock.dt = 0.1*ms``, ``defaultclock.t = 0*ms``, `clear` all
-    objects and `BrianGlobalPreferences._restore` preferences.
+    objects and `BrianGlobalPreferences.restore` preferences.
     '''
     if hasattr(defaultclock, '_dt'):
         del defaultclock._dt
     defaultclock._force_reinit()
     clear(erase=True)
-    brian_prefs._restore()
+    brian_prefs.restore()
 
 # make the test suite available via brian2.test()
 from brian2.tests import run as test

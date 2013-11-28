@@ -264,17 +264,16 @@ class BrianGlobalPreferences(MutableMapping):
         else:
             # go via the standard __setitem__ method
             self[name] = value
-        
 
-    def _backup(self):
+    def backup(self):
         '''
-        Store a backup copy of the preferences to restore with `_restore`.
+        Store a backup copy of the preferences to restore with `restore`.
         '''
         self.backup_prefs.update(**self.prefs)
 
-    def _restore(self):
+    def restore(self):
         '''
-        Restore a copy of the values of the preferences backed up with `_backup`.
+        Restore a copy of the values of the preferences backed up with `backup`.
         '''
         self.prefs.update(**self.backup_prefs)
 

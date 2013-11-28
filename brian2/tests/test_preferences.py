@@ -106,10 +106,10 @@ def test_brianglobalpreferences():
     gp['a.e'] = float32
     assert_raises(PreferenceError, gp.__setitem__, 'a.e', 0)
     # test backup and restore
-    gp._backup()
+    gp.backup()
     gp['a.d'] = 10
     assert gp['a.d']==10
-    gp._restore()
+    gp.restore()
     assert gp['a.d']==2.0
     # test that documentation and as_file generation runs without error, but
     # don't test for values because we might change the organisation of it
@@ -147,7 +147,7 @@ def test_brianglobalpreferences():
     gp.register_preferences('a', 'docs for a',
         b=BrianPreference(5, 'docs for b'),
         )
-    gp._backup()
+    gp.backup()
     gp['a.b'] = 10
     str_modified = gp.as_file
     str_defaults = gp.defaults_as_file
