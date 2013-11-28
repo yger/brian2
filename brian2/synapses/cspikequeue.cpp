@@ -89,7 +89,9 @@ public:
 	void push(int *spikes, unsigned int nspikes)
 	{
 		const unsigned int start = lower_bound(spikes, spikes+nspikes, source_start)-spikes;
-		const unsigned int stop = upper_bound(spikes, spikes+nspikes, source_end)-spikes;
+		// We don't want to include the value source_end itself, therefore we
+		// use source_end-1
+		const unsigned int stop = upper_bound(spikes, spikes+nspikes, source_end-1)-spikes;
 		for(unsigned int idx_spike=start; idx_spike<stop; idx_spike++)
 		{
 			const unsigned int idx_neuron = spikes[idx_spike] - source_start;
