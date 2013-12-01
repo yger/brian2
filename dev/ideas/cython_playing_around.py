@@ -91,8 +91,8 @@ def timefunc_numexpr_smart():
     _exp_term = exp(-dt/tau)
     _a_term = (_sin_term-_sin_term*_exp_term)
     _const_term = -b*_exp_term + b
-    v[:] = numexpr.evaluate('a*_a_term+v*_exp_term+_const_term')
-    #numexpr.evaluate('a*_a_term+v*_exp_term+_const_term', out=v)
+    #v[:] = numexpr.evaluate('a*_a_term+v*_exp_term+_const_term')
+    numexpr.evaluate('a*_a_term+v*_exp_term+_const_term', out=v)
     
 def timefunc_weave(*args):
     code = '''
@@ -116,51 +116,36 @@ def timefunc_weave_fast():
     timefunc_weave('-O3', '-march=native', '-ffast-math')
 
 def dotimeit(f):
+    v[:] = 1
     f()
     print '%s: %.2f' % (f.__name__.replace('timefunc_', ''),
                         timeit.timeit(f.__name__+'()', setup='from __main__ import '+f.__name__, number=100)) 
 
+def check_values(f):
+    v[:] = 1
+    v[:5] = linspace(0, 1, 5)
+    f()
+    print '%s: %s' % (f.__name__.replace('timefunc_', ''), v[:5])
+
 if __name__=='__main__':
-    if 0:
-        # check accuracy
-        v[:] = 1
-        timefunc_weave()
-        print v[:5]
-        v[:] = 1
-        timefunc_cython_inline()
-        print v[:5]
-        v[:] = 1
-        timefunc_numpy()
-        print v[:5]
-        v[:] = 1
-        timefunc_numpy_smart()
-        print v[:5]
-        v[:] = 1
-        timefunc_numpy_blocked()
-        print v[:5]
-        v[:] = 1
-        timefunc_numexpr()
-        print v[:5]
-        v[:] = 1
-        timefunc_numexpr_smart()
-        print v[:5]
+    funcs = [#timefunc_cython_inline,
+             timefunc_cython_modified_inline,
+             timefunc_numpy,
+             timefunc_numpy_smart,
+             timefunc_numpy_blocked,
+             timefunc_numexpr,
+             timefunc_numexpr_smart,
+             timefunc_weave_slow,
+             timefunc_weave_fast,
+             ]
     if 1:
-        #dotimeit(timefunc_cython_inline)
-        v[:] = 1
-        dotimeit(timefunc_cython_modified_inline)
-        #dotimeit(timefunc_python)
-        v[:] = 1
-        dotimeit(timefunc_numpy)
-        v[:] = 1
-        dotimeit(timefunc_numpy_smart)
-        v[:] = 1
-        dotimeit(timefunc_numpy_blocked)
-        v[:] = 1
-        dotimeit(timefunc_numexpr)
-        v[:] = 1
-        dotimeit(timefunc_numexpr_smart)
-        v[:] = 1
-        dotimeit(timefunc_weave_slow)
-        v[:] = 1
-        dotimeit(timefunc_weave_fast)
-        
+        print 'Values'
+        print '======'
+        for f in funcs:
+            check_values(f)
+        print
+    if 1:
+        print 'Times'
+        print '====='
+        for f in funcs:
+            dotimeit(f)
