@@ -61,8 +61,9 @@ def timefunc_numpy():
     _v = a*sin(2.0*freq*pi*t) + b + v*exp(-dt/tau) + (-a*sin(2.0*freq*pi*t) - b)*exp(-dt/tau)
     v[:] = _v
     
-def timefunc_weave():
+def timefunc_weave(*args):
     code = '''
+    // %s
     int N = _N;
     for(int _idx=0; _idx<N; _idx++)
     {
@@ -72,8 +73,14 @@ def timefunc_weave():
         v = _v;
         _array_neurongroup_v[_idx] = v;
     }
-    '''
-    weave.inline(code, ns.keys(), ns, compiler='gcc', extra_compile_args=['-O3', '-ffast-math', '-march=native'])
+    ''' % str(args)
+    weave.inline(code, ns.keys(), ns, compiler='gcc', extra_compile_args=list(args))
+    
+def timefunc_weave_slow():
+    timefunc_weave('-O3', '-march=native')
+
+def timefunc_weave_fast():
+    timefunc_weave('-O3', '-march=native', '-ffast-math')
 
 def dotimeit(f):
     f()
@@ -100,5 +107,7 @@ if __name__=='__main__':
         v[:] = 1
         dotimeit(timefunc_numpy)
         v[:] = 1
-        dotimeit(timefunc_weave)
+        dotimeit(timefunc_weave_slow)
+        v[:] = 1
+        dotimeit(timefunc_weave_fast)
         
