@@ -60,6 +60,15 @@ def timefunc_python():
 def timefunc_numpy():
     _v = a*sin(2.0*freq*pi*t) + b + v*exp(-dt/tau) + (-a*sin(2.0*freq*pi*t) - b)*exp(-dt/tau)
     v[:] = _v
+
+def timefunc_numpy_smart():
+    _sin_term = sin(2.0*freq*pi*t)
+    _exp_term = exp(-dt/tau)
+    _a_term = (_sin_term-_sin_term*_exp_term)
+    _v = v
+    _v *= _exp_term
+    _v += a*_a_term
+    _v += -b*_exp_term + b
     
 def timefunc_weave(*args):
     code = '''
@@ -99,6 +108,9 @@ if __name__=='__main__':
         v[:] = 1
         timefunc_numpy()
         print v[:5]
+        v[:] = 1
+        timefunc_numpy_smart()
+        print v[:5]
     if 1:
         #dotimeit(timefunc_cython_inline)
         v[:] = 1
@@ -106,6 +118,8 @@ if __name__=='__main__':
         #dotimeit(timefunc_python)
         v[:] = 1
         dotimeit(timefunc_numpy)
+        v[:] = 1
+        dotimeit(timefunc_numpy_smart)
         v[:] = 1
         dotimeit(timefunc_weave_slow)
         v[:] = 1
