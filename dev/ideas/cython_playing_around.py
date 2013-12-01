@@ -4,6 +4,7 @@ import time, timeit
 from brian2.codegen.runtime.cython_rt.modified_inline import modified_cython_inline
 import numpy
 from scipy import weave
+import numexpr
 
 tau = 20 * 0.001
 N = 1000000
@@ -69,6 +70,17 @@ def timefunc_numpy_smart():
     _v *= _exp_term
     _v += a*_a_term
     _v += -b*_exp_term + b
+
+def timefunc_numexpr():
+    v[:] = numexpr.evaluate('a*sin(2.0*freq*pi*t) + b + v*exp(-dt/tau) + (-a*sin(2.0*freq*pi*t) - b)*exp(-dt/tau)')
+
+def timefunc_numexpr_smart():
+    _sin_term = sin(2.0*freq*pi*t)
+    _exp_term = exp(-dt/tau)
+    _a_term = (_sin_term-_sin_term*_exp_term)
+    _const_term = -b*_exp_term + b
+    #v[:] = numexpr.evaluate('a*_a_term+v*_exp_term+_const_term')
+    numexpr.evaluate('a*_a_term+v*_exp_term+_const_term', out=v)
     
 def timefunc_weave(*args):
     code = '''
@@ -111,6 +123,12 @@ if __name__=='__main__':
         v[:] = 1
         timefunc_numpy_smart()
         print v[:5]
+        v[:] = 1
+        timefunc_numexpr()
+        print v[:5]
+        v[:] = 1
+        timefunc_numexpr_smart()
+        print v[:5]
     if 1:
         #dotimeit(timefunc_cython_inline)
         v[:] = 1
@@ -120,6 +138,10 @@ if __name__=='__main__':
         dotimeit(timefunc_numpy)
         v[:] = 1
         dotimeit(timefunc_numpy_smart)
+        v[:] = 1
+        dotimeit(timefunc_numexpr)
+        v[:] = 1
+        dotimeit(timefunc_numexpr_smart)
         v[:] = 1
         dotimeit(timefunc_weave_slow)
         v[:] = 1
