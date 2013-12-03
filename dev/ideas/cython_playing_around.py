@@ -5,6 +5,8 @@ from brian2.codegen.runtime.cython_rt.modified_inline import modified_cython_inl
 import numpy
 from scipy import weave
 import numexpr
+import theano
+from theano import tensor as tt
 
 tau = 20 * 0.001
 N = 1000000
@@ -114,6 +116,30 @@ def timefunc_weave_slow():
 
 def timefunc_weave_fast():
     timefunc_weave('-O3', '-march=native', '-ffast-math')
+    
+    
+def get_theano_func():
+    a = tt.dvector('a')
+    v = tt.dvector('v')
+    freq = tt.dscalar('freq')
+    t = tt.dscalar('t')
+    dt = tt.dscalar('dt')
+    tau = tt.dscalar('tau')
+    return theano.function([a, v, freq, t, dt, tau],
+                           a*tt.sin(2.0*freq*pi*t) + b + v*tt.exp(-dt/tau) + (-a*tt.sin(2.0*freq*pi*t) - b)*tt.exp(-dt/tau))
+#    return theano.function([a, v],
+#                           a*tt.sin(2.0*freq*pi*t) + b + v*tt.exp(-dt/tau) + (-a*tt.sin(2.0*freq*pi*t) - b)*tt.exp(-dt/tau))
+
+theano.config.gcc.cxxflags = '-O3 -ffast-math'
+theano_func = get_theano_func()
+#print theano.pp(theano_func.maker.fgraph.outputs[0])
+#print
+#theano.printing.debugprint(theano_func.maker.fgraph.outputs[0])
+#theano.printing.pydotprint(theano_func, 'func.png')
+#exit()
+    
+def timefunc_theano():
+    v[:] = theano_func(a, v, freq, t, dt, tau)
 
 def dotimeit(f):
     v[:] = 1
@@ -137,6 +163,7 @@ if __name__=='__main__':
              timefunc_numexpr_smart,
              timefunc_weave_slow,
              timefunc_weave_fast,
+             timefunc_theano,
              ]
     if 1:
         print 'Values'
