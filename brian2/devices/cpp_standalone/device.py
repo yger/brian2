@@ -74,6 +74,7 @@ class CPPStandaloneDevice(Device):
         self.main_queue = []
         
         self.synapses = []
+        self.n_threads = 1
         
         self.clocks = set([])
         
@@ -203,8 +204,10 @@ class CPPStandaloneDevice(Device):
         return codeobj
 
     def build(self, project_dir='output', compile_project=True, run_project=False, debug=True,
-              with_output=True):
+              with_output=True, n_threads=1):
         ensure_directory(project_dir)
+        self.n_threads = n_threads
+        
         for d in ['code_objects', 'results', 'static_arrays']:
             ensure_directory(os.path.join(project_dir, d))
             
@@ -247,6 +250,8 @@ class CPPStandaloneDevice(Device):
         open(os.path.join(project_dir, 'objects.h'), 'w').write(arr_tmp.h_file)
 
         main_lines = []
+        main_lines.append('omp_set_dynamic(0);')
+        main_lines.append('omp_set_num_threads(%d);' %self.n_threads)
         for func, args in self.main_queue:
             if func=='run_code_object':
                 codeobj, = args
@@ -257,6 +262,7 @@ class CPPStandaloneDevice(Device):
             elif func=='set_by_array':
                 arrayname, staticarrayname = args
                 code = '''
+                #pragma omp parallel for
                 for(int i=0; i<_num_{staticarrayname}; i++)
                 {{
                     {arrayname}[i] = {staticarrayname}[i];
@@ -266,6 +272,7 @@ class CPPStandaloneDevice(Device):
             elif func=='set_array_by_array':
                 arrayname, staticarrayname_index, staticarrayname_value = args
                 code = '''
+                #pragma omp parallel for
                 for(int i=0; i<_num_{staticarrayname_index}; i++)
                 {{
                     {arrayname}[{staticarrayname_index}[i]] = {staticarrayname_value}[i];
@@ -359,9 +366,9 @@ class CPPStandaloneDevice(Device):
         if compile_project:
             with in_directory(project_dir):
                 if debug:
-                    x = os.system('g++ -I. -g *.cpp code_objects/*.cpp brianlib/*.cpp -o main')
+                    x = os.system('g++ -fopenmp -I. -g *.cpp code_objects/*.cpp brianlib/*.cpp -o main')
                 else:
-                    x = os.system('g++ -I. -O3 -ffast-math -march=native *.cpp code_objects/*.cpp brianlib/*.cpp -o main')
+                    x = os.system('g++ -fopenmp -I. -O3 -ffast-math -march=native *.cpp code_objects/*.cpp brianlib/*.cpp -o main')
                 if x==0:
                     if run_project:
                         if not with_output:
@@ -406,6 +413,7 @@ class CPPStandaloneDevice(Device):
         for clock, codeobj in code_objects:
             run_lines.append('{net.name}.add(&{clock.name}, _run_{codeobj.name});'.format(clock=clock, net=net,
                                                                                                codeobj=codeobj))
+
         run_lines.append('{net.name}.run({duration});'.format(net=net, duration=float(duration)))
         self.main_queue.append(('run_network', (net, run_lines)))
 

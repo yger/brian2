@@ -5,36 +5,39 @@
     {# USES_VARIABLES { _t, _i, t, _spikespace, _count,
                         _source_start, _source_stop} #}
 	int _num_spikes = {{_spikespace}}[_num_spikespace-1];
-    if (_num_spikes > 0)
+    #pragma omp master
     {
-        int _start_idx = 0;
-        int _end_idx = - 1;
-        for(int _j=0; _j<_num_spikes; _j++)
+        if (_num_spikes > 0)
         {
-            const int _idx = {{_spikespace}}[_j];
-            if (_idx >= _source_start) {
-                _start_idx = _j;
-                break;
+            int _start_idx = 0;
+            int _end_idx = - 1;
+            for(int _j=0; _j<_num_spikes; _j++)
+            {
+                const int _idx = {{_spikespace}}[_j];
+                if (_idx >= _source_start) {
+                    _start_idx = _j;
+                    break;
+                }
             }
-        }
-        for(int _j=_start_idx; _j<_num_spikes; _j++)
-        {
-            const int _idx = {{_spikespace}}[_j];
-            if (_idx >= _source_stop) {
-                _end_idx = _j;
-                break;
+            for(int _j=_start_idx; _j<_num_spikes; _j++)
+            {
+                const int _idx = {{_spikespace}}[_j];
+                if (_idx >= _source_stop) {
+                    _end_idx = _j;
+                    break;
+                }
             }
-        }
-        if (_end_idx == -1)
-            _end_idx =_num_spikes;
-        _num_spikes = _end_idx - _start_idx;
-        if (_num_spikes > 0) {
-        	for(int _j=_start_idx; _j<_end_idx; _j++)
-        	{
-        		const int _idx = {{_spikespace}}[_j];
-        		{{_dynamic__i}}.push_back(_idx-_source_start);
-        		{{_dynamic__t}}.push_back(t);
-        	}
+            if (_end_idx == -1)
+                _end_idx =_num_spikes;
+            _num_spikes = _end_idx - _start_idx;
+            if (_num_spikes > 0) {
+            	for(int _j=_start_idx; _j<_end_idx; _j++)
+            	{
+            		const int _idx = {{_spikespace}}[_j];
+            		{{_dynamic__i}}.push_back(_idx-_source_start);
+            		{{_dynamic__t}}.push_back(t);
+            	}
+            }
         }
     }
 {% endblock %}

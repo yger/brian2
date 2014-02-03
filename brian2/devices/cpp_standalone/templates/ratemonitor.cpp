@@ -9,7 +9,9 @@
 
 	int _num_spikes = {{_spikespace}}[_num_{{_spikespace}}-1];
 	int _num_source_neurons = _num_{{_spikespace}}-1;
+	#pragma omp single
 	{{_rate}}.push_back(1.0*_num_spikes/dt/_num_source_neurons);
+	#pragma omp single
 	{{_t}}.push_back(t);
 {% endblock %}
 

@@ -1,4 +1,7 @@
 #include "network.h"
+#include<stdlib.h>
+#include<iostream>
+#include<omp.h>
 
 #define Clock_epsilon 1e-14
 
@@ -19,35 +22,51 @@ void Network::add(Clock* clock, codeobj_func func)
 
 void Network::run(double duration)
 {
+	Clock* clock;
 	double t_end = t + duration;
 	// compute the set of clocks
 	compute_clocks();
 	// set interval for all clocks
+
 	for(std::set<Clock*>::iterator i=clocks.begin(); i!=clocks.end(); i++)
 	{
 		(*i)->set_interval(t, t_end);
 	}
-	Clock* clock = next_clocks();
-	while(clock->running())
+
+	clock = next_clocks();
+	
+	#pragma omp parallel
 	{
-		double t = clock->t();
-		for(int i=0; i<objects.size(); i++)
+		#pragma omp master
+		std::cout << "OpenMP is using " << omp_get_num_threads() << " threads...."  << std::endl;
+
+		while(clock->running())
 		{
-			Clock *obj_clock = objects[i].first;
-			// Only execute the object if it uses the right clock for this step
-			if (curclocks.find(obj_clock) != curclocks.end())
+			double t = clock->t();
+			for(int i=0; i<objects.size(); i++)
 			{
-                codeobj_func func = objects[i].second;
-                func(t);
+				Clock *obj_clock = objects[i].first;
+				// Only execute the object if it uses the right clock for this step
+				if (curclocks.find(obj_clock) != curclocks.end())
+				{
+	                codeobj_func func = objects[i].second;
+	                #pragma omp barrier
+	                func(t);
+				}
 			}
+
+			#pragma omp master 
+			{
+				for(std::set<Clock*>::iterator i=curclocks.begin(); i!=curclocks.end(); i++)
+				{		
+					(*i)->tick();
+				}
+			}
+			
+			clock = next_clocks();
 		}
-		for(std::set<Clock*>::iterator i=curclocks.begin(); i!=curclocks.end(); i++)
-		{
-			(*i)->tick();
-		}
-		clock = next_clocks();
+		t = t_end;
 	}
-	t = t_end;
 }
 
 void Network::compute_clocks()
@@ -70,15 +89,19 @@ Clock* Network::next_clocks()
 		if(clock->t()<minclock->t())
 			minclock = clock;
 	}
-	// find set of equal clocks
-	curclocks.clear();
-	double t = minclock->t();
-	for(std::set<Clock*>::iterator i=clocks.begin(); i!=clocks.end(); i++)
+	#pragma omp master
 	{
-		Clock *clock = *i;
-		double s = clock->t();
-		if(s==t or fabs(s-t)<=Clock_epsilon)
-			curclocks.insert(clock);
+		// find set of equal clocks
+		curclocks.clear();
+
+		double t = minclock->t();
+		for(std::set<Clock*>::iterator i=clocks.begin(); i!=clocks.end(); i++)
+		{
+			Clock *clock = *i;
+			double s = clock->t();
+			if(s==t or fabs(s-t)<=Clock_epsilon)
+				curclocks.insert(clock);
+		}
 	}
 	return minclock;
 }

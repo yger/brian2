@@ -1,6 +1,7 @@
 #include<stdlib.h>
 #include "objects.h"
 #include<ctime>
+#include<omp.h>
 
 {% for codeobj in code_objects %}
 #include "code_objects/{{codeobj.name}}.h"

@@ -31,6 +31,7 @@ void _run_{{codeobj_name}}(double t)
 
 	{% block maincode %}
 	//// MAIN CODE ////////////
+	#pragma omp for
 	for(int _idx=0; _idx<N; _idx++)
 	{
 		const int _vectorisation_idx = _idx;

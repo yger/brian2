@@ -5,6 +5,7 @@
     {# USES_VARIABLES { _synaptic_pre } #}
 	std::vector<int32_t> *_spiking_synapses = {{pathway.name}}.queue->peek();
 	const unsigned int _num_spiking_synapses = _spiking_synapses->size();
+	#pragma omp for
 	for(unsigned int _spiking_synapse_idx=0;
 		_spiking_synapse_idx<_num_spiking_synapses;
 		_spiking_synapse_idx++)
