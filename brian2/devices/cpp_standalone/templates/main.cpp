@@ -11,7 +11,7 @@
 
 int main(void)
 {
-	std::clock_t start = std::clock();
+	std::time_t start = std::time(NULL);
 	_init_arrays();
 	_load_arrays();
 	srand((unsigned int)time(NULL));
@@ -20,7 +20,8 @@ int main(void)
 	{% for main_line in main_lines %}
 	{{ main_line }}
 	{% endfor %}
-	double duration = (std::clock()-start)/(double)CLOCKS_PER_SEC;
+	std::time_t stop = std::time(NULL);
+	double duration = std::difftime(stop, start);
 	std::cout << "Simulation time: " << duration << endl;
 	_write_arrays();
 	_dealloc_arrays();

@@ -37,7 +37,7 @@ void Network::run(double duration)
 	
 	#pragma omp parallel
 	{
-		#pragma omp master
+		#pragma omp single
 		std::cout << "OpenMP is using " << omp_get_num_threads() << " threads...."  << std::endl;
 
 		while(clock->running())
@@ -55,7 +55,7 @@ void Network::run(double duration)
 				}
 			}
 
-			#pragma omp master 
+			#pragma omp single 
 			{
 				for(std::set<Clock*>::iterator i=curclocks.begin(); i!=curclocks.end(); i++)
 				{		
@@ -89,7 +89,7 @@ Clock* Network::next_clocks()
 		if(clock->t()<minclock->t())
 			minclock = clock;
 	}
-	#pragma omp master
+	#pragma omp single
 	{
 		// find set of equal clocks
 		curclocks.clear();

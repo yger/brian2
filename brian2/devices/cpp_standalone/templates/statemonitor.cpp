@@ -3,20 +3,18 @@
 {% block maincode %}
     {# USES_VARIABLES { _t, _indices } #}
 
-    #pragma omp master
+    #pragma omp single
     {{_dynamic__t}}.push_back(t);
-    #pragma omp barrier
 
     const int _new_size = {{_dynamic__t}}.size();
     // Resize the dynamic arrays
     {% for var in _recorded_variables.values() %}
     {% set _recorded =  get_array_name(var, access_data=False) %}
-    #pragma omp master
+    #pragma omp single
     {{_recorded}}.resize(_new_size, _num_indices);
     {% endfor %}
-    #pragma omp barrier
 
-    #pragma omp for
+    #pragma omp for schedule(static)
     for (int _i = 0; _i < _num_indices; _i++)
     {
         const int _idx = {{_indices}}[_i];

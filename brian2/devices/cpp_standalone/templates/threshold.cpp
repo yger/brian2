@@ -8,7 +8,7 @@
 
 	//// MAIN CODE ////////////
 	long _cpp_numspikes = 0;
-	#pragma omp master
+	#pragma omp single
 	{
 		for(int _idx=0; _idx<N; _idx++)
 		{
