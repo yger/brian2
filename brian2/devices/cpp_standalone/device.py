@@ -262,7 +262,7 @@ class CPPStandaloneDevice(Device):
             elif func=='set_by_array':
                 arrayname, staticarrayname = args
                 code = '''
-                #pragma omp parallel for
+                #pragma omp parallel for schedule(static)
                 for(int i=0; i<_num_{staticarrayname}; i++)
                 {{
                     {arrayname}[i] = {staticarrayname}[i];
@@ -272,7 +272,7 @@ class CPPStandaloneDevice(Device):
             elif func=='set_array_by_array':
                 arrayname, staticarrayname_index, staticarrayname_value = args
                 code = '''
-                #pragma omp parallel for
+                #pragma omp parallel for schedule(static)
                 for(int i=0; i<_num_{staticarrayname_index}; i++)
                 {{
                     {arrayname}[{staticarrayname_index}[i]] = {staticarrayname_value}[i];

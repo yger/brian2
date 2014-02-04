@@ -66,7 +66,7 @@ void _init_arrays()
 	{% for var in zero_arrays %}
 	{% set varname = array_specs[var] %}
 	{{varname}} = new {{c_data_type(var.dtype)}}[{{var.size}}];
-	#pragma omp for
+	#pragma omp for schedule(static)
 	for(int i=0; i<{{var.size}}; i++) {{varname}}[i] = 0;
 	{% endfor %}
 
@@ -74,7 +74,7 @@ void _init_arrays()
 	{% for var, start in arange_arrays %}
 	{% set varname = array_specs[var] %}
 	{{varname}} = new {{c_data_type(var.dtype)}}[{{var.size}}];
-	#pragma omp for
+	#pragma omp for schedule(static)
 	for(int i=0; i<{{var.size}}; i++) {{varname}}[i] = {{start}} + i;
 	{% endfor %}
 
