@@ -2,12 +2,6 @@
 # coding: latin-1
 """
 CUBA example with delays.
-
-Connection (no delay): 3.5 s
-DelayConnection: 5.7 s
-Synapses (with precomputed offsets): 6.6 s # 6.9 s
-Synapses with weave: 6.4 s
-Synapses with zero delays: 5.2 s
 """
 
 import sys, time
@@ -20,7 +14,7 @@ if standalone == 1:
     set_device('cpp_standalone')
 
 start      = time.time()
-n_cells    = 10000
+n_cells    = 4000
 n_exc      = int(0.8*n_cells)
 p_conn     = 0.1
 taum       = 20 * ms
