@@ -25,7 +25,7 @@ vt      = -54 * mV
 vr      = -60 * mV
 El      = -74 * mV
 taue    = 5 * ms
-F       = 15 * Hz
+F       =  30 * Hz
 gmax    = .01
 dApre   = .01
 dApost  = -dApre * taupre / taupost * 1.05
@@ -41,7 +41,7 @@ input   = PoissonGroup(N, rates=F)
 neurons = NeuronGroup(100, eqs_neurons, threshold='v>vt', reset='v=vr')
 S = Synapses(input, neurons,
              '''w:1
-                dApre/dt=-Apre/taupre : 1 (event-driven)
+                dApre/dt=-Apre/taupre : 1 (event-driven)    
                 dApost/dt=-Apost/taupost : 1 (event-driven)''',
              pre='''ge+=w
                     Apre+=dApre
@@ -50,12 +50,13 @@ S = Synapses(input, neurons,
                      w=clip(w+Apre,0,gmax)''',
              connect=True,
              )
-S.w        = 'rand()*gmax'
-state_mon  = StateMonitor(S, 'w', record=[0])
-spike_mon  = SpikeMonitor(neurons)
+S.w          = 'rand()*gmax'
+state_mon    = StateMonitor(S, 'w', record=[0])
+spike_mon_1  = SpikeMonitor(input)
+spike_mon_2  = SpikeMonitor(neurons)
 start_time = time.time()
-run(100 * second)
-print time.time()-start
+run(10 * second)
+
 if standalone == 1:
-    build(project_dir='STDP_%d' %n_threads, compile_project=True, run_project=True, debug=False, n_threads=n_threads)
+    build(project_dir='data_stdp_%d' %n_threads, compile_project=True, run_project=True, debug=False, n_threads=n_threads)
 

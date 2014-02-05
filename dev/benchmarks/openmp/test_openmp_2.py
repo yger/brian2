@@ -1,7 +1,7 @@
 import sys, os, numpy, time, pylab
 
 filename = 'STDP_standalone.py'
-datapath = 'STDP'
+datapath = 'data_stdp'
 threads  = [1, 2, 4, 6]
 results  = {}
 results['duration'] = []

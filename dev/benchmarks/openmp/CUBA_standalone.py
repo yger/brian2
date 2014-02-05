@@ -20,10 +20,9 @@ if standalone == 1:
     set_device('cpp_standalone')
 
 start      = time.time()
-n_threads  = int(sys.argv[-1])
-n_cells    = 1000
+n_cells    = 10000
 n_exc      = int(0.8*n_cells)
-p_conn     = 0.02
+p_conn     = 0.1
 taum       = 20 * ms
 taue       = 5 * ms
 taui       = 10 * ms
@@ -60,9 +59,6 @@ Si.delay ='rand()*ms'
 
 spike_mon = SpikeMonitor(P)
 
-print len(P), "neurons in the network"
-print "Simulation running..."
 run(1 * second)
-print time.time()-start
 if standalone == 1:
-    build(project_dir='CUBA_%d' %n_threads, compile_project=True, run_project=True, debug=True, n_threads=n_threads)
+    build(project_dir='data_cuba_%d' %n_threads, compile_project=True, run_project=True, debug=True, n_threads=n_threads)
