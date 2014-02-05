@@ -5,41 +5,50 @@
     {# USES_VARIABLES { _t, _i, t, _spikespace, _count,
                         _source_start, _source_stop} #}
 	int _num_spikes = {{_spikespace}}[_num_spikespace-1];
-    #pragma omp single
+    
+    std::vector<double>  _local_t_;
+    std::vector<int>     _local_i_;
+
+    if (_num_spikes > 0)
     {
-        if (_num_spikes > 0)
+        int _start_idx = 0;
+        int _end_idx = - 1;
+        for(int _j=0; _j<_num_spikes; _j++)
         {
-            int _start_idx = 0;
-            int _end_idx = - 1;
-            for(int _j=0; _j<_num_spikes; _j++)
-            {
-                const int _idx = {{_spikespace}}[_j];
-                if (_idx >= _source_start) {
-                    _start_idx = _j;
-                    break;
-                }
-            }
-            for(int _j=_start_idx; _j<_num_spikes; _j++)
-            {
-                const int _idx = {{_spikespace}}[_j];
-                if (_idx >= _source_stop) {
-                    _end_idx = _j;
-                    break;
-                }
-            }
-            if (_end_idx == -1)
-                _end_idx =_num_spikes;
-            _num_spikes = _end_idx - _start_idx;
-            if (_num_spikes > 0) {
-            	for(int _j=_start_idx; _j<_end_idx; _j++)
-            	{
-            		const int _idx = {{_spikespace}}[_j];
-            		{{_dynamic__i}}.push_back(_idx-_source_start);
-            		{{_dynamic__t}}.push_back(t);
-            	}
+            const int _idx = {{_spikespace}}[_j];
+            if (_idx >= _source_start) {
+                _start_idx = _j;
+                break;
             }
         }
+        for(int _j=_start_idx; _j<_num_spikes; _j++)
+        {
+            const int _idx = {{_spikespace}}[_j];
+            if (_idx >= _source_stop) {
+                _end_idx = _j;
+                break;
+            }
+        }
+        if (_end_idx == -1)
+            _end_idx =_num_spikes;
+        _num_spikes = _end_idx - _start_idx;
+        if (_num_spikes > 0) {
+            #pragma omp for schedule(static)
+          	for(int _j=_start_idx; _j<_end_idx; _j++)
+           	{
+          		const int _idx = {{_spikespace}}[_j];
+           		_local_i_.push_back(_idx-_source_start);
+           		_local_t_.push_back(t);
+           	}
+        }
     }
+
+    #pragma omp critical
+    {
+        {{_dynamic__i}}.insert({{_dynamic__i}}.end(), _local_i_.begin(), _local_i_.end());
+        {{_dynamic__t}}.insert({{_dynamic__t}}.end(), _local_t_.begin(), _local_t_.end());
+    }
+
 {% endblock %}
 
 {% block extra_functions_cpp %}

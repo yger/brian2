@@ -7,8 +7,10 @@
 	// conditionally
 
 	//// MAIN CODE ////////////
-	long _cpp_numspikes = 0;
-	#pragma omp single
+	//long _cpp_numspikes = 0;
+	{{_spikespace}}[N] = 0;
+	
+	#pragma omp single 
 	{
 		for(int _idx=0; _idx<N; _idx++)
 		{
@@ -17,7 +19,7 @@
 			{{line}}
 			{% endfor %}
 			if(_cond) {
-				{{_spikespace}}[_cpp_numspikes++] = _idx;
+				{{_spikespace}}[{{_spikespace}}[N]++] = _idx;
 				{% if _uses_refractory %}
 				// We have to use the pointer names directly here: The condition
 				// might contain references to not_refractory or lastspike and in
@@ -27,6 +29,7 @@
 				{% endif %}
 			}
 		}
-		{{_spikespace}}[N] = _cpp_numspikes;
 	}
+	//{{_spikespace}}[N] = _cpp_numspikes;
+	//}
 {% endblock %}

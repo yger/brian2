@@ -26,7 +26,7 @@ void _run_{{codeobj_name}}(double t)
 	%CONSTANTS%
 	///// POINTERS ////////////
 	{% for line in pointers_lines %}
-	{{line}}
+	{{line}}	
 	{% endfor %}
 
 	{% block maincode %}

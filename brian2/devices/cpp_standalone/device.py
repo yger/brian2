@@ -414,10 +414,11 @@ class CPPStandaloneDevice(Device):
             run_lines.append('{net.name}.add(&{clock.name}, _run_{codeobj.name});'.format(clock=clock, net=net,
                                                                                                codeobj=codeobj))
 
+        run_lines.append('std::time_t build = std::time(NULL);')
+        run_lines.append('double temporary = std::difftime(build, start);')
+        run_lines.append('std::cout << "Building time: " << temporary << endl;')
         run_lines.append('{net.name}.run({duration});'.format(net=net, duration=float(duration)))
         self.main_queue.append(('run_network', (net, run_lines)))
-
-
 
 cpp_standalone_device = CPPStandaloneDevice()
 
