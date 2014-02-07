@@ -14,7 +14,7 @@ if standalone == 1:
     set_device('cpp_standalone')
 
 start      = time.time()
-n_cells    = 4000
+n_cells    = 5000
 n_exc      = int(0.8*n_cells)
 p_conn     = 0.1
 taum       = 20 * ms

@@ -204,7 +204,7 @@ class CPPStandaloneDevice(Device):
         return codeobj
 
     def build(self, project_dir='output', compile_project=True, run_project=False, debug=True,
-              with_output=True, n_threads=1):
+              with_output=True, n_threads=0):
         ensure_directory(project_dir)
         self.n_threads = n_threads
         
@@ -250,8 +250,12 @@ class CPPStandaloneDevice(Device):
         open(os.path.join(project_dir, 'objects.h'), 'w').write(arr_tmp.h_file)
 
         main_lines = []
-        main_lines.append('omp_set_dynamic(0);')
-        main_lines.append('omp_set_num_threads(%d);' %self.n_threads)
+
+        if self.n_threads >= 1:
+            main_lines.append('omp_set_dynamic(0);')
+            main_lines.append('omp_set_num_threads(%d);' %self.n_threads)
+        elif self.n_threads < 0:
+            main_lines.append('omp_set_dynamic(1);')
         for func, args in self.main_queue:
             if func=='run_code_object':
                 codeobj, = args
@@ -366,9 +370,12 @@ class CPPStandaloneDevice(Device):
         if compile_project:
             with in_directory(project_dir):
                 if debug:
-                    x = os.system('g++ -fopenmp -I. -g *.cpp code_objects/*.cpp brianlib/*.cpp -o main')
+                    options = '-g'
                 else:
-                    x = os.system('g++ -fopenmp -I. -O3 -ffast-math -march=native *.cpp code_objects/*.cpp brianlib/*.cpp -o main')
+                    options = '-O3 -ffast-math -march=native'
+                if self.n_threads != 0:
+                    options += ' -fopenmp'
+                x = os.system('g++ -I. %s *.cpp code_objects/*.cpp brianlib/*.cpp -o main' %options)
                 if x==0:
                     if run_project:
                         if not with_output:
@@ -416,7 +423,7 @@ class CPPStandaloneDevice(Device):
 
         run_lines.append('std::time_t build = std::time(NULL);')
         run_lines.append('double temporary = std::difftime(build, start);')
-        run_lines.append('std::cout << "Building time: " << temporary << endl;')
+        run_lines.append('std::cout << "Building time: " << temporary << " second" << std::endl;')
         run_lines.append('{net.name}.run({duration});'.format(net=net, duration=float(duration)))
         self.main_queue.append(('run_network', (net, run_lines)))
 

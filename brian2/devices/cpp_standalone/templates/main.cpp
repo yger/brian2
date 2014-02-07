@@ -22,7 +22,7 @@ int main(void)
 	{% endfor %}
 	std::time_t stop = std::time(NULL);
 	double duration = std::difftime(stop, start);
-	std::cout << "Simulation time: " << duration << endl;
+	std::cout << "Simulation time: " << duration << " second" << std::endl;
 	_write_arrays();
 	_dealloc_arrays();
 	return 0;

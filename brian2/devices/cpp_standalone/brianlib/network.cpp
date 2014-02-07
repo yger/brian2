@@ -37,9 +37,7 @@ void Network::run(double duration)
 	
 	#pragma omp parallel
 	{
-		#pragma omp single
-		std::cout << "OpenMP is using " << omp_get_num_threads() << " threads...."  << std::endl;
-
+		
 		while(clock->running())
 		{
 			double t = clock->t();
