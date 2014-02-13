@@ -10,22 +10,19 @@ import re
 
 import numpy as np
 
-from brian2.core.namespace import create_namespace
-from brian2.core.preferences import brian_prefs
 from brian2.core.variables import (DynamicArrayVariable, Variables)
 from brian2.codegen.codeobject import create_runner_codeobj
 from brian2.devices.device import get_device
 from brian2.equations.equations import (Equations, SingleEquation,
                                         DIFFERENTIAL_EQUATION, STATIC_EQUATION,
                                         PARAMETER)
-from brian2.groups.group import Group, GroupCodeRunner
+from brian2.groups.group import Group, CodeRunner, dtype_dictionary
 from brian2.stateupdaters.base import StateUpdateMethod
 from brian2.stateupdaters.exact import independent
 from brian2.units.fundamentalunits import (Unit, Quantity,
                                            fail_for_dimension_mismatch)
 from brian2.units.allunits import second
 from brian2.utils.logger import get_logger
-from brian2.core.namespace import get_local_namespace
 from brian2.core.spikesource import SpikeSource
 
 
@@ -36,24 +33,24 @@ __all__ = ['Synapses']
 logger = get_logger(__name__)
 
 
-class StateUpdater(GroupCodeRunner):
+class StateUpdater(CodeRunner):
     '''
-    The `GroupCodeRunner` that updates the state variables of a `Synapses`
+    The `CodeRunner` that updates the state variables of a `Synapses`
     at every timestep.
     '''
     def __init__(self, group, method):
         self.method_choice = method
-        GroupCodeRunner.__init__(self, group,
-                                 'stateupdate',
-                                 when=(group.clock, 'groups'),
-                                 name=group.name + '_stateupdater',
-                                 check_units=False)
+        CodeRunner.__init__(self, group,
+                            'stateupdate',
+                            when=(group.clock, 'groups'),
+                            name=group.name + '_stateupdater',
+                            check_units=False)
 
         self.method = StateUpdateMethod.determine_stateupdater(self.group.equations,
                                                                self.group.variables,
                                                                method)
     
-    def update_abstract_code(self):
+    def update_abstract_code(self, run_namespace=None, level=0):
         
         self.method = StateUpdateMethod.determine_stateupdater(self.group.equations,
                                                                self.group.variables,
@@ -63,9 +60,9 @@ class StateUpdater(GroupCodeRunner):
                                          self.group.variables)
 
 
-class SummedVariableUpdater(GroupCodeRunner):
+class SummedVariableUpdater(CodeRunner):
     '''
-    The `GroupCodeRunner` that updates a value in the target group with the
+    The `CodeRunner` that updates a value in the target group with the
     sum over values in the `Synapses` object.
     '''
     def __init__(self, expression, target_varname, synapses, target):
@@ -81,20 +78,20 @@ class SummedVariableUpdater(GroupCodeRunner):
 
         template_kwds = {'_target_var': synapses.variables[target_varname]}
 
-        GroupCodeRunner.__init__(self, group=synapses,
-                                 template='summed_variable',
-                                 code=code,
-                                 needed_variables=[target_varname],
-                                 # We want to update the sumned variable before
-                                 # the target group gets updated
-                                 when=(target.clock, 'groups', -1),
-                                 name=synapses.name + '_summed_variable_' + target_varname,
-                                 template_kwds=template_kwds)
+        CodeRunner.__init__(self, group=synapses,
+                            template='summed_variable',
+                            code=code,
+                            needed_variables=[target_varname],
+                            # We want to update the sumned variable before
+                            # the target group gets updated
+                            when=(target.clock, 'groups', -1),
+                            name=synapses.name + '_summed_variable_' + target_varname,
+                            template_kwds=template_kwds)
 
 
-class SynapticPathway(GroupCodeRunner, Group):
+class SynapticPathway(CodeRunner, Group):
     '''
-    The `GroupCodeRunner` that applies the pre/post statement(s) to the state
+    The `CodeRunner` that applies the pre/post statement(s) to the state
     variables of synapses where the pre-/postsynaptic group spiked in this
     time step.
 
@@ -114,8 +111,12 @@ class SynapticPathway(GroupCodeRunner, Group):
         may have changed to become unique. If ``None`` is provided (the
         default), ``prepost+'*'`` will be used (see `Nameable` for an
         explanation of the wildcard operator).
+    delay : `Quantity`, optional
+        A scalar delay (same delay for all synapses) for this pathway. If
+        not given, delays are expected to vary between synapses.
     '''
-    def __init__(self, synapses, code, prepost, objname=None):
+    def __init__(self, synapses, code, prepost, objname=None,
+                 delay=None):
         self.code = code
         self.prepost = prepost
         if prepost == 'pre':
@@ -134,12 +135,12 @@ class SynapticPathway(GroupCodeRunner, Group):
         if objname is None:
             objname = prepost + '*'
 
-        GroupCodeRunner.__init__(self, synapses,
-                                 'synapses',
-                                 code=code,
-                                 when=(synapses.clock, 'synapses'),
-                                 name=synapses.name + '_' + objname,
-                                 template_kwds={'pathway': self})
+        CodeRunner.__init__(self, synapses,
+                            'synapses',
+                            code=code,
+                            when=(synapses.clock, 'synapses'),
+                            name=synapses.name + '_' + objname,
+                            template_kwds={'pathway': self})
 
         self._pushspikes_codeobj = None
 
@@ -156,13 +157,30 @@ class SynapticPathway(GroupCodeRunner, Group):
         self.variables.add_reference('_spikespace',
                                      self.source.variables['_spikespace'])
         self.variables.add_reference('N', synapses.variables['N'])
-        self.variables.add_dynamic_array('delay', unit=second,
-                                         size=synapses._N, constant=True,
-                                         constant_size=True)
+        if delay is None:  # variable delays
+            self.variables.add_dynamic_array('delay', unit=second,
+                                             size=synapses._N, constant=True,
+                                             constant_size=True)
+            # Register the object with the `SynapticIndex` object so it gets
+            # automatically resized
+            synapses.register_variable(self.variables['delay'])
+        else:
+            if not isinstance(delay, Quantity):
+                raise TypeError(('Cannot set the delay for pathway "%s": '
+                                 'expected a quantity, got %s instead.') % (objname,
+                                                                            type(delay)))
+            if delay.size != 1:
+                raise TypeError(('Cannot set the delay for pathway "%s": '
+                                 'expected a scalar quantity, got a '
+                                 'quantity with shape %s instead.') % str(delay.shape))
+            fail_for_dimension_mismatch(delay, second, ('Delay has to be '
+                                                        'specified in units '
+                                                        'of seconds'))
+            self.variables.add_array('delay', unit=second, size=1,
+                                     constant=True, scalar=True)
+            self.variables['delay'].set_value(delay)
+
         self._delays = self.variables['delay']
-        # Register the object with the `SynapticIndex` object so it gets
-        # automatically resized
-        synapses.register_variable(self._delays)
 
         # Re-extract the last part of the name from the full name
         self.objname = self.name[len(synapses.name) + 1:]
@@ -176,11 +194,11 @@ class SynapticPathway(GroupCodeRunner, Group):
         #: The `CodeObject` initalising the `SpikeQueue` at the begin of a run
         self._initialise_queue_codeobj = None
 
-        self.namespace = create_namespace(None)
+        self.namespace = synapses.namespace
         # Enable access to the delay attribute via the specifier
         self._enable_group_attributes()
 
-    def update_abstract_code(self):
+    def update_abstract_code(self, run_namespace=None, level=0):
         if self.synapses.event_driven is not None:
             event_driven_update = independent(self.synapses.event_driven,
                                               self.group.variables)
@@ -195,7 +213,7 @@ class SynapticPathway(GroupCodeRunner, Group):
         self.abstract_code += self.code + '\n'
         self.abstract_code += 'lastupdate = t\n'
 
-    def before_run(self, namespace):
+    def before_run(self, run_namespace=None, level=0):
         # execute code to initalize the spike queue
         if self._initialise_queue_codeobj is None:
             self._initialise_queue_codeobj = create_runner_codeobj(self,
@@ -203,18 +221,22 @@ class SynapticPathway(GroupCodeRunner, Group):
                                                                    'synapses_initialise_queue',
                                                                    name=self.name+'_initialise_queue',
                                                                    check_units=False,
-                                                                   additional_variables=self.variables)
+                                                                   additional_variables=self.variables,
+                                                                   run_namespace=run_namespace,
+                                                                   level=level+1)
         self._initialise_queue_codeobj()
-        GroupCodeRunner.before_run(self, namespace)
+        CodeRunner.before_run(self, run_namespace, level=level+1)
 
-        # we insert rather than replace because GroupCodeRunner puts a CodeObject in updaters already
+        # we insert rather than replace because CodeRunner puts a CodeObject in updaters already
         if self._pushspikes_codeobj is None:
             self._pushspikes_codeobj = create_runner_codeobj(self,
                                                              '', # no code
                                                              'synapses_push_spikes',
                                                              name=self.name+'_push_spikes',
                                                              check_units=False,
-                                                             additional_variables=self.variables)
+                                                             additional_variables=self.variables,
+                                                             run_namespace=run_namespace,
+                                                             level=level+1)
 
         self._code_objects.insert(0, weakref.proxy(self._pushspikes_codeobj))
 
@@ -356,9 +378,11 @@ class Synapses(Group):
         with either the values from the ``network`` argument of the
         `Network.run` method or from the local context, if no such argument is
         given.
-    dtype : `dtype`, optional
-        The standard datatype for all state variables. Defaults to
-        `core.default_scalar_type`.
+    dtype : (`dtype`, `dict`), optional
+        The `numpy.dtype` that will be used to store the values, or a
+        dictionary specifying the type for variable names. If a value is not
+        provided for a variable (or no value is provided at all), the preference
+        setting `core.default_scalar_dtype` is used.
     codeobj_class : class, optional
         The `CodeObject` class to use to run code.
     clock : `Clock`, optional
@@ -398,7 +422,7 @@ class Synapses(Group):
         # Check flags
         model.check_flags({DIFFERENTIAL_EQUATION: ['event-driven'],
                            STATIC_EQUATION: ['summed'],
-                           PARAMETER: ['constant']})
+                           PARAMETER: ['constant', 'scalar']})
 
         # Separate the equations into event-driven and continuously updated
         # equations
@@ -420,11 +444,7 @@ class Synapses(Group):
         self.equations = Equations(continuous)
 
         # Setup the namespace
-        self._given_namespace = namespace
-        self.namespace = create_namespace(namespace)
-
-        self._queues = {}
-        self._delays = {}
+        self.namespace = namespace
 
         # Setup variables
         self._create_variables()
@@ -439,6 +459,15 @@ class Synapses(Group):
                 # it gets automatically resized
                 self.register_variable(var)
 
+        if delay is None:
+            delay = {}
+
+        if isinstance(delay, Quantity):
+            delay = {'pre': delay}
+        elif not isinstance(delay, collections.Mapping):
+            raise TypeError('Delay argument has to be a quantity or a '
+                            'dictionary, is type %s instead.' % type(delay))
+
         #: List of names of all updaters, e.g. ['pre', 'post']
         self._synaptic_updaters = []
         #: List of all `SynapticPathway` objects
@@ -447,7 +476,8 @@ class Synapses(Group):
             if not argument:
                 continue
             if isinstance(argument, basestring):
-                self._add_updater(argument, prepost)
+                pathway_delay = delay.get(prepost, None)
+                self._add_updater(argument, prepost, delay=pathway_delay)
             elif isinstance(argument, collections.Mapping):
                 for key, value in argument.iteritems():
                     if not isinstance(key, basestring):
@@ -455,48 +485,21 @@ class Synapses(Group):
                                    'have to be strings, got '
                                    '{} instead.').format(prepost, type(key))
                         raise TypeError(err_msg)
-                    self._add_updater(value, prepost, objname=key)
+                    pathway_delay = delay.get(key, None)
+                    self._add_updater(value, prepost, objname=key,
+                                      delay=pathway_delay)
+
+        # Check whether any delays were specified for pathways that don't exist
+        for pathway in delay:
+            if not pathway in self._synaptic_updaters:
+                raise ValueError(('Cannot set the delay for pathway '
+                                  '"%s": unknown pathway.') % pathway)
 
         # If we have a pathway called "pre" (the most common use case), provide
         # direct access to its delay via a delay attribute (instead of having
         # to use pre.delay)
         if 'pre' in self._synaptic_updaters:
             self.variables.add_reference('delay', self.pre.variables['delay'])
-
-        if delay is not None:
-            if isinstance(delay, Quantity):
-                if not 'pre' in self._synaptic_updaters:
-                    raise ValueError(('Cannot set delay, no "pre" pathway exists.'
-                                      'Use a dictionary if you want to set the '
-                                      'delay for a pathway with a different name.'))
-                delay = {'pre': delay}
-
-            if not isinstance(delay, collections.Mapping):
-                raise TypeError('Delay argument has to be a quantity or a '
-                                'dictionary, is type %s instead.' % type(delay))
-            for pathway, pathway_delay in delay.iteritems():
-                if not pathway in self._synaptic_updaters:
-                    raise ValueError(('Cannot set the delay for pathway '
-                                      '"%s": unknown pathway.') % pathway)
-                if not isinstance(pathway_delay, Quantity):
-                    raise TypeError(('Cannot set the delay for pathway "%s": '
-                                     'expected a quantity, got %s instead.') % (pathway,
-                                                                                type(pathway_delay)))
-                if pathway_delay.size != 1:
-                    raise TypeError(('Cannot set the delay for pathway "%s": '
-                                     'expected a scalar quantity, got a '
-                                     'quantity with shape %s instead.') % str(pathway_delay.shape))
-                fail_for_dimension_mismatch(pathway_delay, second, ('Delay has to be '
-                                                                    'specified in units '
-                                                                    'of seconds'))
-                updater = getattr(self, pathway)
-                # For simplicity, store the delay as a one-element array
-                # so that for example updater._delays[:] works.
-                updater._delays.resize(1)
-                updater._delays.set_value(float(pathway_delay))
-                updater._delays.scalar = True
-                # Do not resize the scalar delay variable when adding synapses
-                self.unregister_variable(updater._delays)
 
         #: Performs numerical integration step
         self.state_updater = StateUpdater(self, method)        
@@ -563,11 +566,11 @@ class Synapses(Group):
     def __len__(self):
         return self._N
 
-    def before_run(self, namespace):
+    def before_run(self, run_namespace=None, level=0):
         self.lastupdate = self.clock.t
-        super(Synapses, self).before_run(namespace)
+        super(Synapses, self).before_run(run_namespace, level=level+1)
 
-    def _add_updater(self, code, prepost, objname=None):
+    def _add_updater(self, code, prepost, objname=None, delay=None):
         '''
         Add a new target updater. Users should call `add_pre` or `add_post`
         instead.
@@ -581,6 +584,9 @@ class Synapses(Group):
             Whether the code is triggered by presynaptic or postsynaptic spikes
         objname : str, optional
             A name for the object, see `SynapticPathway` for more details.
+        delay : `Quantity`, optional
+            A scalar delay (same delay for all synapses) for this pathway. If
+            not given, delays are expected to vary between synapses.
 
         Returns
         -------
@@ -602,7 +608,7 @@ class Synapses(Group):
                              ' clock attribute. Is type %r instead')
                             % (group_name, type(spike_group)))
 
-        updater = SynapticPathway(self, code, prepost, objname)
+        updater = SynapticPathway(self, code, prepost, objname, delay)
         objname = updater.objname
         if hasattr(self, objname):
             raise ValueError(('Cannot add updater with name "{name}", synapses '
@@ -620,13 +626,7 @@ class Synapses(Group):
         Create the variables dictionary for this `Synapses`, containing
         entries for the equation variables and some standard entries.
         '''
-        if dtype is None:
-            dtype = defaultdict(lambda: brian_prefs['core.default_scalar_dtype'])
-        elif isinstance(dtype, np.dtype):
-            dtype = defaultdict(lambda: dtype)
-        elif not hasattr(dtype, '__getitem__'):
-            raise TypeError(('Cannot use type %s as dtype '
-                             'specification') % type(dtype))
+        dtype = dtype_dictionary(dtype)
 
         self.variables = Variables(self)
 
@@ -660,16 +660,26 @@ class Synapses(Group):
                                   self.event_driven.itervalues()
                                   if self.event_driven is not None else []):
             if eq.type in (DIFFERENTIAL_EQUATION, PARAMETER):
-                constant = ('constant' in eq.flags)
-                # We are dealing with dynamic arrays here, code generation
-                # shouldn't directly access the specifier.array attribute but
-                # use specifier.get_value() to get a reference to the underlying
-                # array
-                self.variables.add_dynamic_array(eq.varname, size=0,
-                                                 unit=eq.unit,
-                                                 dtype=dtype[eq.varname],
-                                                 constant=constant,
-                                                 is_bool=eq.is_bool)
+                constant = 'constant' in eq.flags
+                scalar = 'scalar' in eq.flags
+                if scalar:
+                    self.variables.add_array(eq.varname, size=1,
+                                             unit=eq.unit,
+                                             dtype=dtype[eq.varname],
+                                             constant=constant,
+                                             is_bool=eq.is_bool,
+                                             scalar=True,
+                                             index='0')
+                else:
+                    # We are dealing with dynamic arrays here, code generation
+                    # shouldn't directly access the specifier.array attribute but
+                    # use specifier.get_value() to get a reference to the underlying
+                    # array
+                    self.variables.add_dynamic_array(eq.varname, size=0,
+                                                     unit=eq.unit,
+                                                     dtype=dtype[eq.varname],
+                                                     constant=constant,
+                                                     is_bool=eq.is_bool)
             elif eq.type == STATIC_EQUATION:
                 if 'summed' in eq.flags:
                     # Give a special name to the subexpression for summed
@@ -699,7 +709,8 @@ class Synapses(Group):
             # reference will never overwrite the name of an existing name
             self.variables.add_reference(name, var, index='_postsynaptic_idx')
 
-    def connect(self, pre_or_cond, post=None, p=1., n=1, level=0):
+    def connect(self, pre_or_cond, post=None, p=1., n=1, namespace=None,
+                level=0):
         '''
         Add synapses. The first argument can be either a presynaptic index
         (int or array) or a condition for synapse creation in the form of a
@@ -725,6 +736,13 @@ class Synapses(Group):
         n : int, optional
             The number of synapses to create per pre/post connection pair.
             Defaults to 1.
+        namespace : dict-like, optional
+            A namespace that will be used in addition to the group-specific
+            namespaces (if defined). If not specified, the locals
+            and globals around the run function will be used.
+        level : int, optional
+            How deep to go up the stack frame to look for the locals/global
+            (see `namespace` argument).
 
         Examples
         --------
@@ -757,7 +775,7 @@ class Synapses(Group):
             i, j, n = np.broadcast_arrays(pre_or_cond, post, n)
             if i.ndim > 1:
                 raise ValueError('Can only use 1-dimensional indices')
-            self._add_synapses(i, j, n, p, level=level+1)
+            self._add_synapses(i, j, n, p, namespace=namespace, level=level+1)
         elif isinstance(pre_or_cond, (basestring, bool)):
             if pre_or_cond is False:
                 return  # nothing to do...
@@ -774,7 +792,7 @@ class Synapses(Group):
                 raise TypeError('p has to be a float or a string evaluating '
                                 'to an float, is type %s instead.' % type(n))
             self._add_synapses(None, None, n, p, condition=pre_or_cond,
-                               level=level+1)
+                               namespace=namespace, level=level+1)
         else:
             raise TypeError(('First argument has to be an index or a '
                              'string, is %s instead.') % type(pre_or_cond))
@@ -811,7 +829,7 @@ class Synapses(Group):
         self._registered_variables.remove(variable)
 
     def _add_synapses(self, sources, targets, n, p, condition=None,
-                      level=0):
+                      namespace=None, level=0):
 
         if condition is None:
             sources = np.atleast_1d(sources).astype(np.int32)
@@ -848,8 +866,6 @@ class Synapses(Group):
             abstract_code += '_cond = ' + condition + '\n'
             abstract_code += '_n = ' + str(n) + '\n'
             abstract_code += '_p = ' + str(p)
-            namespace = get_local_namespace(level + 1)
-            additional_namespace = ('implicit-namespace', namespace)
             # This overwrites 'i' and 'j' in the synapses' variables dictionary
             # This is necessary because in the context of synapse creation, i
             # and j do not correspond to the sources/targets of the existing
@@ -882,9 +898,9 @@ class Synapses(Group):
                                             'synapses_create',
                                             variable_indices=variable_indices,
                                             additional_variables=variables,
-                                            additional_namespace=additional_namespace,
-                                            check_units=False
-                                            )
+                                            check_units=False,
+                                            run_namespace=namespace,
+                                            level=level+1)
             codeobj()
 
 

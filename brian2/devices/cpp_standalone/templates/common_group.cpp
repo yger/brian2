@@ -5,6 +5,7 @@
 #include<stdint.h>
 #include<iostream>
 #include<fstream>
+
 {% block extra_headers %}
 {% endblock %}
 
@@ -20,8 +21,9 @@ namespace {
 {{line}}
 {% endfor %}
 
-void _run_{{codeobj_name}}(double t)
+void _run_{{codeobj_name}}()
 {
+	using namespace brian;
 	///// CONSTANTS ///////////
 	%CONSTANTS%
 	///// POINTERS ////////////
@@ -56,7 +58,7 @@ void _run_{{codeobj_name}}(double t)
 
 #include "objects.h"
 
-void _run_{{codeobj_name}}(double t);
+void _run_{{codeobj_name}}();
 
 {% block extra_functions_h %}
 {% endblock %}

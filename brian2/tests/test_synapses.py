@@ -134,6 +134,19 @@ def test_connection_string_deterministic():
         S = Synapses(G, G, 'w:1', 'v+=w', connect='i == j', codeobj_class=codeobj_class)
         _compare(S, expected)
 
+        # Everything except for the upper [5, 5] quadrant
+        number = 5
+        expected = np.ones((len(G), len(G)))
+        expected[:number, :number] = 0
+        S = Synapses(G, G, 'w:1', 'v+=w', codeobj_class=codeobj_class)
+        S.connect('(i >= number) or (j >= number)')
+        _compare(S, expected)
+
+        S = Synapses(G, G, 'w:1', 'v+=w', codeobj_class=codeobj_class)
+        S.connect('(i >= explicit_number) or (j >= explicit_number)',
+                  namespace={'explicit_number': number})
+        _compare(S, expected)
+
 
 def test_connection_random():
     '''
@@ -353,13 +366,12 @@ def test_delay_specification():
 
     # Scalar delay
     S = Synapses(G, G, 'w:1', pre='v+=w', delay=5*ms)
+    assert_equal(S.delay[:], 5*ms)
     S.connect('i==j')
     S.delay = 10*ms
     assert_equal(S.delay[:], 10*ms)
-    S.delay = '3*ms'
-    assert_equal(S.delay[:], 3*ms)
-    # TODO: Assignment with strings or arrays is currently possible, it only
-    # takes into account the first value
+    # S.delay = '3*ms'
+    # assert_equal(S.delay[:], 3*ms)
 
     # Invalid arguments
     assert_raises(DimensionMismatchError, lambda: Synapses(G, G, 'w:1',
@@ -423,7 +435,7 @@ def test_changed_dt_spikes_in_queue():
                     6, 7, 8, #dt = 1ms
                     8.1, 9.1 #dt=0.1ms
                     ] * ms
-        assert_equal(mon.t, expected)
+        assert_equal(mon.t[:], expected)
 
 
 def test_summed_variable():

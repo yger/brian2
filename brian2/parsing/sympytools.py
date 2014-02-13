@@ -4,7 +4,7 @@ Utility functions for parsing expressions and statements.
 import sympy
 from sympy.printing.str import StrPrinter
 
-from brian2.core.functions import DEFAULT_FUNCTIONS, log10
+from brian2.core.functions import DEFAULT_FUNCTIONS, DEFAULT_CONSTANTS, log10
 from brian2.parsing.rendering import SympyNodeRenderer
 
 
@@ -61,7 +61,7 @@ def str_to_sympy(expr):
 class CustomSympyPrinter(StrPrinter):
     '''
     Printer that overrides the printing of some basic sympy objects. E.g.
-    print "a & b" instead of "And(a, b)".
+    print "a and b" instead of "And(a, b)".
     '''
 
     def _print_And(self, expr):
@@ -109,9 +109,11 @@ def sympy_to_str(sympy_expr):
                         if f.sympy_func is not None and isinstance(f.sympy_func,
                                                                    sympy.FunctionClass)
                         and str(f.sympy_func) != name)
+    # replace constants with our names as well
+    replacements.update(dict((c.sympy_obj, sympy.Symbol(name)) for
+                             name, c in DEFAULT_CONSTANTS.iteritems()
+                             if str(c.sympy_obj) != name))
 
-    sympy_expr = sympy_expr.subs(replacements)
+    sympy_expr = sympy_expr.xreplace(replacements)
     
     return PRINTER.doprint(sympy_expr)
-
-    

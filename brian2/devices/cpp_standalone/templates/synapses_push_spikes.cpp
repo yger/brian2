@@ -10,8 +10,9 @@
 #include<stdint.h>
 #include "brianlib/common_math.h"
 
-void _run_{{codeobj_name}}(double t)
+void _run_{{codeobj_name}}()
 {
+	using namespace brian;
     ///// CONSTANTS ///////////
 	%CONSTANTS%
 	///// POINTERS ////////////
@@ -41,7 +42,7 @@ void _run_{{codeobj_name}}(double t)
 
 #include "objects.h"
 
-void _run_{{codeobj_name}}(double t);
+void _run_{{codeobj_name}}();
 
 #endif
 {% endmacro %}

@@ -1,29 +1,40 @@
 #include<stdlib.h>
 #include "objects.h"
 #include<ctime>
+<<<<<<< HEAD
 #include<omp.h>
+=======
+#include "run.h"
+>>>>>>> upstream/cpp_standalone_improvements
 
 {% for codeobj in code_objects %}
 #include "code_objects/{{codeobj.name}}.h"
 {% endfor %}
 
+{% for name in additional_headers %}
+#include "{{name}}"
+{% endfor %}
+
 #include<iostream>
 
-int main(void)
+int main(int argc, char **argv)
 {
-	std::time_t start = std::time(NULL);
-	_init_arrays();
-	_load_arrays();
-	srand((unsigned int)time(NULL));
-	const double dt = {{dt}};
-	double t = 0.0;
-	{% for main_line in main_lines %}
-	{{ main_line }}
-	{% endfor %}
-	std::time_t stop = std::time(NULL);
-	double duration = std::difftime(stop, start);
-	std::cout << "Simulation time: " << duration << " second" << std::endl;
-	_write_arrays();
-	_dealloc_arrays();
+
+	std::clock_t start = std::clock();
+
+	brian_start();
+
+	{
+		using namespace brian;
+		{% for main_line in main_lines %}
+		{{ main_line }}
+		{% endfor %}
+	}
+
+	double _run_duration = (std::clock()-start)/(double)CLOCKS_PER_SEC;
+	std::cout << "Simulation time: " << _run_duration << endl;
+
+	brian_end();
+
 	return 0;
 }

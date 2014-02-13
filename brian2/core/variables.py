@@ -4,6 +4,7 @@ sub-expression.
 '''
 import weakref
 import collections
+import functools
 
 import numpy as np
 
@@ -131,6 +132,13 @@ class Variable(object):
         #: Whether the variable is read-only
         self.read_only = read_only
 
+    @property
+    def dim(self):
+        '''
+        The dimensions of this variable.
+        '''
+        return self.unit.dim
+
     def get_value(self):
         '''
         Return the value associated with the variable (without units). This
@@ -257,6 +265,21 @@ class Constant(Variable):
             dtype = np.bool
         else:
             dtype = get_dtype(value)
+
+        # Use standard Python types if possible for numpy scalars (generates
+        # nicer code for C++ when using weave)
+        if getattr(value, 'shape', None) == () and hasattr(value, 'dtype'):
+            numpy_type = value.dtype
+            if np.can_cast(numpy_type, np.int_):
+                value = int(value)
+            elif np.can_cast(numpy_type, np.float_):
+                value = float(value)
+            elif np.can_cast(numpy_type, np.complex_):
+                value = complex(value)
+            elif value is np.True_:
+                value = True
+            elif value is np.False_:
+                value = False
 
         #: The constant's value
         self.value = value
@@ -416,6 +439,21 @@ class ArrayVariable(Variable):
 
         #: The size of this variable.
         self.size = size
+
+        if scalar and size != 1:
+            raise ValueError(('Scalar variables need to have size 1, not '
+                              'size %d.') % size)
+
+        #: Another variable, on which the write is conditioned (e.g. a variable
+        #: denoting the absence of refractoriness)
+        self.conditional_write = None
+
+    def set_conditional_write(self, var):
+        if not var.is_bool:
+            raise TypeError(('A variable can only be conditionally writeable '
+                             'depending on a boolean variable, %s is not '
+                             'boolean.') % var.name)
+        self.conditional_write = var
 
     def get_value(self):
         return self.device.get_value(self)
@@ -610,10 +648,14 @@ class VariableView(object):
         self.group = weakref.proxy(group)
         self.unit = unit
 
-    dim = property(lambda self: self.unit.dim,
-                   doc='The dimensions of this variable.')
+    @property
+    def dim(self):
+        '''
+        The dimensions of this variable.
+        '''
+        return self.unit.dim
 
-    def get_item(self, item, level=0):
+    def get_item(self, item, level=0, namespace=None):
         '''
         Get the value of this variable. Called by `__getitem__`.
 
@@ -622,17 +664,21 @@ class VariableView(object):
         item : slice, `ndarray` or string
             The index for the setting operation
         level : int, optional
-            How much farther to go up in the stack to find the namespace.
+            How much farther to go up in the stack to find the implicit
+            namespace (if used, see `run_namespace`).
+        namespace : dict-like, optional
+            An additional namespace that is used for variable lookup (if not
+            defined, the implicit namespace of local variables is used).
         '''
         variable = self.variable
         if isinstance(item, basestring):
-            values = variable.device.get_with_expression(self.group, self.name,
-                                                         variable, item,
-                                                         level=level+1)
+            values = self.group.get_with_expression(self.name,
+                                                    variable, item,
+                                                    level=level+1,
+                                                    run_namespace=namespace)
         else:
-            values = variable.device.get_with_index_array(self.group,
-                                                          self.name, variable,
-                                                          item)
+            values = self.group.get_with_index_array(self.name, variable,
+                                                     item)
 
         if self.unit is None:
             return values
@@ -642,7 +688,7 @@ class VariableView(object):
     def __getitem__(self, item):
         return self.get_item(item, level=1)
 
-    def set_item(self, item, value, level=0):
+    def set_item(self, item, value, level=0, namespace=None):
         '''
         Set this variable. This function is called by `__setitem__` but there
         is also a situation where it should be called directly: if the context
@@ -656,7 +702,11 @@ class VariableView(object):
         value : `Quantity`, `ndarray` or number
             The value for the setting operation
         level : int, optional
-            How much farther to go up in the stack to find the namespace.
+            How much farther to go up in the stack to find the implicit
+            namespace (if used, see `run_namespace`).
+        namespace : dict-like, optional
+            An additional namespace that is used for variable lookup (if not
+            defined, the implicit namespace of local variables is used).
         '''
         variable = self.variable
         if variable.read_only:
@@ -670,12 +720,12 @@ class VariableView(object):
         # Both index and values are strings, use a single code object do deal
         # with this situation
         if isinstance(value, basestring) and isinstance(item, basestring):
-            variable.device.set_with_expression_conditional(self.group,
-                                                            self.name,
-                                                            variable,
-                                                            item, value,
-                                                            check_units=check_units,
-                                                            level=level+1)
+            self.group.set_with_expression_conditional(self.name,
+                                                       variable,
+                                                       item, value,
+                                                       check_units=check_units,
+                                                       level=level+1,
+                                                       run_namespace=namespace)
         elif isinstance(item, basestring):
             try:
                 float(value)  # only checks for the exception
@@ -687,35 +737,36 @@ class VariableView(object):
                 except (IndexError, TypeError):
                     # was scalar already apparently
                     pass
-            except (TypeError, ValueError) as ex:
-                if item == 'True':
-                    # Fall back to the general array-array pattern
-                    variable.device.set_with_index_array(self.group, self.name,
-                                                         variable,
-                                                         slice(None), value,
-                                                         check_units=check_units)
-                    return
-                else:
+            except (TypeError, ValueError):
+                if item != 'True':
                     raise TypeError('When setting a variable based on a string '
                                     'index, the value has to be a string or a '
                                     'scalar.')
 
-            variable.device.set_with_expression_conditional(self.group,
-                                                            self.name,
-                                                            variable,
-                                                            item,
-                                                            repr(value),
-                                                            check_units=check_units,
-                                                            level=level+1)
+            if item == 'True':
+                # We do not want to go through code generation for runtime
+                    self.group.set_with_index_array(self.name,
+                                                    variable,
+                                                    slice(None), value,
+                                                    check_units=check_units)
+            else:
+                self.group.set_with_expression_conditional(self.name,
+                                                           variable,
+                                                           item,
+                                                           repr(value),
+                                                           check_units=check_units,
+                                                           level=level+1,
+                                                           run_namespace=namespace)
         elif isinstance(value, basestring):
-            variable.device.set_with_expression(self.group, self.name, variable,
-                                                item, value,
-                                                check_units=check_units,
-                                                level=level+1)
+            self.group.set_with_expression(self.name, variable,
+                                           item, value,
+                                           check_units=check_units,
+                                           level=level+1,
+                                           run_namespace=namespace)
         else:  # No string expressions involved
-            variable.device.set_with_index_array(self.group, self.name,
-                                                 variable, item, value,
-                                                 check_units=check_units)
+            self.group.set_with_index_array(self.name,
+                                            variable, item, value,
+                                            check_units=check_units)
 
     def __setitem__(self, item, value):
         self.set_item(item, value, level=1)
@@ -726,6 +777,9 @@ class VariableView(object):
         if dtype is not None and dtype != self.variable.dtype:
             raise NotImplementedError('Changing dtype not supported')
         return self[:]
+
+    def __len__(self):
+        return len(self[:])
 
     def __neg__(self):
         return -self[:]
@@ -858,7 +912,9 @@ class Variables(collections.Mapping):
 
         self._variables = {}
         #: A dictionary given the index name for every array name
-        self.indices = collections.defaultdict(lambda: default_index)
+        self.indices = collections.defaultdict(functools.partial(str, default_index))
+        # Note that by using functools.partial (instead of e.g. a lambda
+        # function) above, this object remains pickable.
 
     def __getitem__(self, item):
         return self._variables[item]
@@ -885,7 +941,7 @@ class Variables(collections.Mapping):
             self.indices[name] = index
 
     def add_array(self, name, unit, size, dtype=None,
-                  constant=False, is_bool=False, read_only=False,
+                  constant=False, is_bool=False, read_only=False, scalar=False,
                   index=None):
         '''
         Add an array (initialized with zeros).
@@ -904,6 +960,9 @@ class Variables(collections.Mapping):
         constant : bool, optional
             Whether the variable's value is constant during a run.
             Defaults to ``False``.
+        scalar : bool, optional
+            Whether this is a scalar variable. Defaults to ``False``, if set to
+            ``True``, also implies that `size` equals 1.
         is_bool: bool, optional
             Whether this is a boolean variable (also implies it is
             dimensionless). Defaults to ``False``
@@ -919,6 +978,7 @@ class Variables(collections.Mapping):
                             device=self.device, size=size,
                             dtype=default_dtype(dtype, is_bool),
                             constant=constant, is_bool=is_bool,
+                            scalar=scalar,
                             read_only=read_only)
         self._add_variable(name, var, index)
         self.device.init_with_zeros(var)
@@ -1145,7 +1205,7 @@ class Variables(collections.Mapping):
         for name, var in variables.iteritems():
             self.add_reference(name, var, index)
 
-    def add_clock_variables(self, clock):
+    def add_clock_variables(self, clock, prefix=''):
         '''
         Convenience function to add the ``t`` and ``dt`` attributes of a
         `clock`.
@@ -1156,9 +1216,13 @@ class Variables(collections.Mapping):
             The clock that should be used for ``t`` and ``dt``. Note that the
             actual attributes referred to are ``t_`` and ``dt_``, i.e. the
             unitless values.
+        prefix : str, optional
+            A prefix for the variable names. Used for example in monitors to
+            not confuse the dynamic array of recorded times with the current
+            time in the recorded group.
         '''
-        self.add_attribute_variable('t', unit=second, obj=clock,
+        self.add_attribute_variable(prefix+'t', unit=second, obj=clock,
                                     attribute='t_', dtype=np.float64)
-        self.add_attribute_variable('dt', unit=second, obj=clock,
+        self.add_attribute_variable(prefix+'dt', unit=second, obj=clock,
                                     attribute='dt_', dtype=np.float64,
                                     constant=True)

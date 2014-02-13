@@ -253,7 +253,7 @@ class Network(Nameable):
         self.objects.sort(key=lambda obj: (when_to_int[obj.when], obj.order))
     
     @device_override('network_before_run')
-    def before_run(self, namespace):
+    def before_run(self, run_namespace=None, level=0):
         '''
         before_run(namespace)
 
@@ -284,7 +284,7 @@ class Network(Nameable):
                      "before_run")
         
         for obj in self.objects:
-            obj.before_run(namespace)
+            obj.before_run(run_namespace, level=level+2)
 
         logger.debug("Network {self.name} has {num} "
                      "clocks: {clocknames}".format(self=self,
@@ -332,11 +332,11 @@ class Network(Nameable):
         report_period : `Quantity`
             How frequently (in real time) to report progress.
         namespace : dict-like, optional
-            A namespace in which objects which do not define their own
-            namespace will be run. If no namespace is given at all, the locals
+            A namespace that will be used in addition to the group-specific
+            namespaces (if defined). If not specified, the locals
             and globals around the run function will be used.
         level : int, optional
-            How deep to go down the stack frame to look for the locals/global
+            How deep to go up the stack frame to look for the locals/global
             (see `namespace` argument). Only used by run functions that call
             this run function, e.g. `MagicNetwork.run` to adjust for the
             additional nesting.
@@ -347,11 +347,7 @@ class Network(Nameable):
         global `stop` function.
         '''
         
-        if namespace is not None:
-            self.before_run(('explicit-run-namespace', namespace))
-        else:
-            namespace = get_local_namespace(3 + level)
-            self.before_run(('implicit-run-namespace', namespace))
+        self.before_run(namespace, level=level+3)
 
         if len(self.objects)==0:
             return # TODO: raise an error? warning?

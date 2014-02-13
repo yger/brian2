@@ -37,12 +37,17 @@ void Network::run(double duration)
 	
 	#pragma omp parallel
 	{
+<<<<<<< HEAD
 		
 		while(clock->running())
+=======
+		for(int i=0; i<objects.size(); i++)
+>>>>>>> upstream/cpp_standalone_improvements
 		{
 			double t = clock->t();
 			for(int i=0; i<objects.size(); i++)
 			{
+<<<<<<< HEAD
 				Clock *obj_clock = objects[i].first;
 				// Only execute the object if it uses the right clock for this step
 				if (curclocks.find(obj_clock) != curclocks.end())
@@ -51,6 +56,10 @@ void Network::run(double duration)
 	                #pragma omp barrier
 	                func(t);
 				}
+=======
+                codeobj_func func = objects[i].second;
+                func();
+>>>>>>> upstream/cpp_standalone_improvements
 			}
 
 			#pragma omp single 
@@ -84,19 +93,18 @@ Clock* Network::next_clocks()
 	for(std::set<Clock*>::iterator i=clocks.begin(); i!=clocks.end(); i++)
 	{
 		Clock *clock = *i;
-		if(clock->t()<minclock->t())
+		if(clock->t_()<minclock->t_())
 			minclock = clock;
 	}
+	// find set of equal clocks
 	#pragma omp single
 	{
-		// find set of equal clocks
 		curclocks.clear();
-
-		double t = minclock->t();
+		double t = minclock->t_();
 		for(std::set<Clock*>::iterator i=clocks.begin(); i!=clocks.end(); i++)
 		{
 			Clock *clock = *i;
-			double s = clock->t();
+			double s = clock->t_();
 			if(s==t or fabs(s-t)<=Clock_epsilon)
 				curclocks.insert(clock);
 		}

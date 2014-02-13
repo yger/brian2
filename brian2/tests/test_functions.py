@@ -3,6 +3,7 @@ import numpy as np
 from numpy.testing import assert_equal, assert_raises, assert_allclose
 
 from brian2 import *
+from brian2.parsing.sympytools import str_to_sympy, sympy_to_str
 from brian2.utils.logger import catch_logs
 
 # We can only test C++ if weave is availabe
@@ -12,6 +13,28 @@ try:
 except ImportError:
     # Can't test C++
     codeobj_classes = [NumpyCodeObject]
+
+
+def test_constants_sympy():
+    '''
+    Make sure that symbolic constants are understood correctly by sympy
+    '''
+    assert sympy_to_str(str_to_sympy('1.0/inf')) == '0'
+    assert sympy_to_str(str_to_sympy('sin(pi)')) == '0'
+    assert sympy_to_str(str_to_sympy('log(e)')) == '1'
+
+
+def test_constants_values():
+    '''
+    Make sure that symbolic constants use the correct values in code
+    '''
+    G = NeuronGroup(1, 'v : 1')
+    G.v = 'pi'
+    assert G.v == np.pi
+    G.v = 'e'
+    assert G.v == np.e
+    G.v = 'inf'
+    assert G.v == np.inf
 
 
 def test_math_functions():
@@ -135,7 +158,8 @@ def test_simple_user_defined_function():
                         '''func = usersin(variable) : 1
                               variable : 1''',
                         codeobj_class=WeaveCodeObject)
-        mon = StateMonitor(G, 'func', record=True)
+        mon = StateMonitor(G, 'func', record=True,
+                           codeobj_class=WeaveCodeObject)
         net = Network(G, mon)
         # This looks a bit odd -- we have to get usersin into the namespace of
         # the lambda expression
@@ -233,11 +257,11 @@ def test_add_implementations():
     del foo.implementations[WeaveCodeObject]
     # language name
     add_implementations(foo, codes={'cpp': {}})
-    assert set(foo.implementations.keys()) == set([CPPLanguage])
-    del foo.implementations[CPPLanguage]
+    assert set(foo.implementations.keys()) == set([WeaveCodeGenerator])
+    del foo.implementations[WeaveCodeGenerator]
     # class object
-    add_implementations(foo, codes={CPPLanguage: {}})
-    assert set(foo.implementations.keys()) == set([CPPLanguage])
+    add_implementations(foo, codes={CPPCodeGenerator: {}})
+    assert set(foo.implementations.keys()) == set([CPPCodeGenerator])
     # unknown name
     assert_raises(ValueError, lambda: add_implementations(foo,
                                                           codes={'unknown': {}}))
@@ -279,18 +303,18 @@ def test_function_implementation_container():
     from brian2.core.functions import FunctionImplementationContainer
     import brian2.codegen.targets as targets
 
-    class ALanguage(Language):
-        language_id = 'A language'
+    class ACodeGenerator(CodeGenerator):
+        generator_id = 'A language'
 
-    class BLanguage(Language):
-        language_id = 'B language'
+    class BCodeGenerator(CodeGenerator):
+        generator_id = 'B language'
 
     class ACodeObject(CodeObject):
-        language = ALanguage()
+        generator_class = ACodeGenerator
         class_name = 'A'
 
     class BCodeObject(CodeObject):
-        language = BLanguage()
+        generator_class = BCodeGenerator
         class_name = 'B'
 
     # Register the code generation targets
@@ -299,9 +323,9 @@ def test_function_implementation_container():
 
     container = FunctionImplementationContainer()
 
-    # inserting into the container with a Language class
-    container[BLanguage] = 'implementation B language'
-    assert container[BLanguage] == 'implementation B language'
+    # inserting into the container with a CodeGenerator class
+    container[BCodeGenerator] = 'implementation B language'
+    assert container[BCodeGenerator] == 'implementation B language'
 
     # inserting into the container with a CodeObject class
     container[ACodeObject] = 'implementation A CodeObject'
@@ -316,13 +340,15 @@ def test_function_implementation_container():
     assert len(container) == 2
     del container[ACodeObject]
     assert len(container) == 1
-    assert set((key for key in container)) == set([BLanguage])
+    assert set((key for key in container)) == set([BCodeGenerator])
 
     # Restore the previous codegeneration targets
     targets.codegen_targets = _previous_codegen_targets
 
 
 if __name__ == '__main__':
+    test_constants_sympy()
+    test_constants_values()
     test_math_functions()
     test_user_defined_function()
     test_simple_user_defined_function()
