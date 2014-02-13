@@ -37,29 +37,14 @@ void Network::run(double duration)
 	
 	#pragma omp parallel
 	{
-<<<<<<< HEAD
-		
-		while(clock->running())
-=======
 		for(int i=0; i<objects.size(); i++)
->>>>>>> upstream/cpp_standalone_improvements
 		{
 			double t = clock->t();
 			for(int i=0; i<objects.size(); i++)
 			{
-<<<<<<< HEAD
-				Clock *obj_clock = objects[i].first;
-				// Only execute the object if it uses the right clock for this step
-				if (curclocks.find(obj_clock) != curclocks.end())
-				{
-	                codeobj_func func = objects[i].second;
-	                #pragma omp barrier
-	                func(t);
-				}
-=======
                 codeobj_func func = objects[i].second;
+                #pragma omp barrier
                 func();
->>>>>>> upstream/cpp_standalone_improvements
 			}
 
 			#pragma omp single 

@@ -239,13 +239,10 @@ class CPPStandaloneDevice(Device):
         return codeobj
 
     def build(self, project_dir='output', compile_project=True, run_project=False, debug=True,
-<<<<<<< HEAD
-              with_output=True, n_threads=0):
-=======
               with_output=True, native=True,
               additional_source_files=None, additional_header_files=None,
               main_includes=None, run_includes=None,
-              run_args='',
+              run_args='', n_threads=0
               ):
         '''
         Build the project
@@ -285,7 +282,6 @@ class CPPStandaloneDevice(Device):
         if run_includes is None:
             run_includes = []
         
->>>>>>> upstream/cpp_standalone_improvements
         ensure_directory(project_dir)
         self.n_threads = n_threads
         
@@ -331,17 +327,15 @@ class CPPStandaloneDevice(Device):
         writer.write('objects.*', arr_tmp)
 
         main_lines = []
-<<<<<<< HEAD
 
-        if self.n_threads >= 1:
-            main_lines.append('omp_set_dynamic(0);')
-            main_lines.append('omp_set_num_threads(%d);' %self.n_threads)
-        elif self.n_threads < 0:
-            main_lines.append('omp_set_dynamic(1);')
-=======
+        #if self.n_threads >= 1:
+        #    main_lines.append('omp_set_dynamic(0);')
+        #    main_lines.append('omp_set_num_threads(%d);' %self.n_threads)
+        #elif self.n_threads < 0:
+        #    main_lines.append('omp_set_dynamic(1);')
         procedures = [('', main_lines)]
         runfuncs = {}
->>>>>>> upstream/cpp_standalone_improvements
+
         for func, args in self.main_queue:
             if func=='run_code_object':
                 codeobj, = args
@@ -483,20 +477,18 @@ class CPPStandaloneDevice(Device):
         if compile_project:
             with in_directory(project_dir):
                 if debug:
-<<<<<<< HEAD
-                    options = '-g'
-                else:
-                    options = '-O3 -ffast-math -march=native'
-                if self.n_threads != 0:
-                    options += ' -fopenmp'
-                x = os.system('g++ -I. %s *.cpp code_objects/*.cpp brianlib/*.cpp -o main' %options)
-=======
+
+#                    options = '-g'
+#                else:
+#                    options = '-O3 -ffast-math -march=native'
+#                if self.n_threads != 0:
+#                    options += ' -fopenmp'
+#                x = os.system('g++ -I. %s *.cpp code_objects/*.cpp brianlib/*.cpp -o main' %options)
                     x = os.system('make debug')
                 elif native:
                     x = os.system('make native')
                 else:
                     x = os.system('make')
->>>>>>> upstream/cpp_standalone_improvements
                 if x==0:
                     if run_project:
                         if not with_output:
@@ -546,8 +538,6 @@ class CPPStandaloneDevice(Device):
         run_lines.append('{net.name}.run({duration});'.format(net=net, duration=float(duration)))
         self.main_queue.append(('run_network', (net, run_lines)))
 
-<<<<<<< HEAD
-=======
     def run_function(self, name, include_in_parent=True):
         '''
         Context manager to divert code into a function
@@ -574,7 +564,6 @@ class RunFunctionContext(object):
         cpp_standalone_device.main_queue.append(('end_run_func', (self.name, self.include_in_parent)))
 
 
->>>>>>> upstream/cpp_standalone_improvements
 cpp_standalone_device = CPPStandaloneDevice()
 
 all_devices['cpp_standalone'] = cpp_standalone_device
