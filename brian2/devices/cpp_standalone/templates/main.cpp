@@ -1,11 +1,8 @@
 #include<stdlib.h>
 #include "objects.h"
 #include<ctime>
-<<<<<<< HEAD
 #include<omp.h>
-=======
 #include "run.h"
->>>>>>> upstream/cpp_standalone_improvements
 
 {% for codeobj in code_objects %}
 #include "code_objects/{{codeobj.name}}.h"

@@ -39,7 +39,7 @@ void Network::run(double duration)
 	{
 		for(int i=0; i<objects.size(); i++)
 		{
-			double t = clock->t();
+			double t = clock->t_();
 			for(int i=0; i<objects.size(); i++)
 			{
                 codeobj_func func = objects[i].second;
