@@ -15,11 +15,11 @@ for t in threads:
 for t in threads:
     results[t]  = {}
     path        = datapath + '_%d/' %t
-    ids         = numpy.fromfile(path+'results/spikemonitor_codeobject_i', dtype=numpy.int32)
-    times       = numpy.fromfile(path+'results/spikemonitor_codeobject_t', dtype=numpy.float64)
+    ids         = numpy.fromfile(path+'results/_dynamic_array_spikemonitor_i', dtype=numpy.int32)
+    times       = numpy.fromfile(path+'results/_dynamic_array_spikemonitor_t', dtype=numpy.float64)
     w           = numpy.fromfile(path+'results/_dynamic_array_synapses_w', dtype=numpy.float64)
-    times_2     = numpy.fromfile(path+'results/statemonitor_codeobject_t', dtype=numpy.float64)
-    w_over_time = numpy.fromfile(path+'results/statemonitor_codeobject_w', dtype=numpy.float64)
+    times_2     = numpy.fromfile(path+'results/_dynamic_array_statemonitor_t', dtype=numpy.float64)
+    w_over_time = numpy.fromfile(path+'results/_dynamic_array_statemonitor__recorded_w', dtype=numpy.float64)
     results[t]['spikes']  = (times, ids)
     results[t]['w']       = w
     results[t]['trace_w'] = (times_2, w_over_time)

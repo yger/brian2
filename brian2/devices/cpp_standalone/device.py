@@ -329,11 +329,11 @@ class CPPStandaloneDevice(Device):
 
         main_lines = []
 
-        #if self.n_threads >= 1:
-        #    main_lines.append('omp_set_dynamic(0);')
-        #    main_lines.append('omp_set_num_threads(%d);' %self.n_threads)
-        #elif self.n_threads < 0:
-        #    main_lines.append('omp_set_dynamic(1);')
+        if self.n_threads >= 1:
+            main_lines.append('omp_set_dynamic(0);')
+            main_lines.append('omp_set_num_threads(%d);' %self.n_threads)
+        elif self.n_threads < 0:
+            main_lines.append('omp_set_dynamic(1);')
         procedures = [('', main_lines)]
         runfuncs = {}
 
@@ -478,13 +478,6 @@ class CPPStandaloneDevice(Device):
         if compile_project:
             with in_directory(project_dir):
                 if debug:
-
-#                    options = '-g'
-#                else:
-#                    options = '-O3 -ffast-math -march=native'
-#                if self.n_threads != 0:
-#                    options += ' -fopenmp'
-#                x = os.system('g++ -I. %s *.cpp code_objects/*.cpp brianlib/*.cpp -o main' %options)
                     x = os.system('make debug')
                 elif native:
                     x = os.system('make native')
@@ -533,9 +526,6 @@ class CPPStandaloneDevice(Device):
             run_lines.append('{net.name}.add(&{clock.name}, _run_{codeobj.name});'.format(clock=clock, net=net,
                                                                                                codeobj=codeobj))
 
-        run_lines.append('std::time_t build = std::time(NULL);')
-        run_lines.append('double temporary = std::difftime(build, start);')
-        run_lines.append('std::cout << "Building time: " << temporary << " second" << std::endl;')
         run_lines.append('{net.name}.run({duration});'.format(net=net, duration=float(duration)))
         self.main_queue.append(('run_network', (net, run_lines)))
 

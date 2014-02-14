@@ -22,7 +22,6 @@ void Network::add(Clock* clock, codeobj_func func)
 
 void Network::run(double duration)
 {
-	Clock* clock;
 	double t_end = t + duration;
 	// compute the set of clocks
 	compute_clocks();
@@ -33,31 +32,33 @@ void Network::run(double duration)
 		(*i)->set_interval(t, t_end);
 	}
 
-	clock = next_clocks();
+	Clock* clock = next_clocks();
 	
 	#pragma omp parallel
 	{
-		for(int i=0; i<objects.size(); i++)
+		while(clock->running())
 		{
-			double t = clock->t_();
 			for(int i=0; i<objects.size(); i++)
 			{
-                codeobj_func func = objects[i].second;
-                #pragma omp barrier
-                func();
+				Clock *obj_clock = objects[i].first;
+				// Only execute the object if it uses the right clock for this step
+				if (curclocks.find(obj_clock) != curclocks.end())
+				{
+	                codeobj_func func = objects[i].second;
+	                #pragma omp barrier
+	                func();
+				}
 			}
-
-			#pragma omp single 
+			#pragma omp single
 			{
 				for(std::set<Clock*>::iterator i=curclocks.begin(); i!=curclocks.end(); i++)
-				{		
+				{
 					(*i)->tick();
 				}
 			}
-			
 			clock = next_clocks();
 		}
-		t = t_end;
+	t = t_end;
 	}
 }
 

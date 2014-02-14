@@ -15,8 +15,8 @@ for t in threads:
 for t in threads:
     results[t] = {}
     path       = datapath + '_%d/' %t
-    ids        = numpy.fromfile(path+'results/spikemonitor_codeobject_i', dtype=numpy.int32)
-    times      = numpy.fromfile(path+'results/spikemonitor_codeobject_t', dtype=numpy.float64)
+    ids        = numpy.fromfile(path+'results/_dynamic_array_spikemonitor_i', dtype=numpy.int32)
+    times      = numpy.fromfile(path+'results/_dynamic_array_spikemonitor_t', dtype=numpy.float64)
     vms        = numpy.fromfile(path+'results/_array_neurongroup_v', dtype=numpy.float64)
     w          = numpy.fromfile(path+'results/_dynamic_array_synapses_1_w', dtype=numpy.float64)
     results[t]['spikes'] = (times, ids)

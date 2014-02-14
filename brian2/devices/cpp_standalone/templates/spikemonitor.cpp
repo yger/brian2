@@ -32,24 +32,13 @@
                 _end_idx =_num_spikes;
             _num_spikes = _end_idx - _start_idx;
             if (_num_spikes > 0) {
-              	for(int _j=_start_idx; _j<_end_idx; _j++)
-               	{
-              		const int _idx = {{_spikespace}}[_j];
-               		{{_dynamic__i}}.push_back(_idx-_source_start);
-               		{{_dynamic__t}}.push_back(t);
-               	}
+                for(int _j=_start_idx; _j<_end_idx; _j++)
+                {
+                    const int _idx = {{_spikespace}}[_j];
+                    {{_dynamic_i}}.push_back(_idx-_source_start);
+                    {{_dynamic_t}}.push_back(_clock_t);
+                }
             }
-        }
-        if (_end_idx == -1)
-            _end_idx =_num_spikes;
-        _num_spikes = _end_idx - _start_idx;
-        if (_num_spikes > 0) {
-        	for(int _j=_start_idx; _j<_end_idx; _j++)
-        	{
-        		const int _idx = {{_spikespace}}[_j];
-        		{{_dynamic_i}}.push_back(_idx-_source_start);
-        		{{_dynamic_t}}.push_back(_clock_t);
-        	}
         }
     }
 
