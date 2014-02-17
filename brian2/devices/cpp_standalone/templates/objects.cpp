@@ -21,7 +21,7 @@ Network brian::{{net.name}};
 {% endfor %}
 
 //////////////// arrays ///////////////////
-{% for var, varname in array_specs.items() | sort %}
+{% for var, varname in array_specs | dictsort(by='value') %}
 {% if not var in dynamic_array_specs %}
 {{c_data_type(var.dtype)}} * brian::{{varname}};
 const int brian::_num_{{varname}} = {{var.size}};
@@ -29,12 +29,12 @@ const int brian::_num_{{varname}} = {{var.size}};
 {% endfor %}
 
 //////////////// dynamic arrays 1d /////////
-{% for var, varname in dynamic_array_specs.items() | sort %}
+{% for var, varname in dynamic_array_specs | dictsort(by='value') %}
 std::vector<{{c_data_type(var.dtype)}}> brian::{{varname}};
 {% endfor %}
 
 //////////////// dynamic arrays 2d /////////
-{% for var, varname in dynamic_array_2d_specs.items() | sort %}
+{% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
 DynamicArray2D<{{c_data_type(var.dtype)}}> brian::{{varname}};
 {% endfor %}
 
@@ -65,7 +65,7 @@ void _init_arrays()
 	using namespace brian;
 
     // Arrays initialized to 0
-	{% for var in zero_arrays | sort %}
+	{% for var in zero_arrays | sort(attribute='name') %}
 	{% set varname = array_specs[var] %}
 	{{varname}} = new {{c_data_type(var.dtype)}}[{{var.size}}];
 	#pragma omp parralel for schedule(static)
@@ -73,7 +73,7 @@ void _init_arrays()
 	{% endfor %}
 
 	// Arrays initialized to an "arange"
-	{% for var, start in arange_arrays | sort %}
+	{% for var, start in arange_arrays %}
 	{% set varname = array_specs[var] %}
 	{{varname}} = new {{c_data_type(var.dtype)}}[{{var.size}}];
 	#pragma omp parralel for schedule(static)
@@ -107,7 +107,7 @@ void _write_arrays()
 {
 	using namespace brian;
 
-	{% for var, varname in array_specs.items() | sort %}
+	{% for var, varname in array_specs | dictsort(by='value') %}
 	{% if not (var in dynamic_array_specs or var in dynamic_array_2d_specs) %}
 	ofstream outfile_{{varname}};
 	outfile_{{varname}}.open("results/{{varname}}", ios::binary | ios::out);
@@ -122,7 +122,7 @@ void _write_arrays()
 	{% endif %}
 	{% endfor %}
 
-	{% for var, varname in dynamic_array_specs.items() | sort %}
+	{% for var, varname in dynamic_array_specs | dictsort(by='value') %}
 	ofstream outfile_{{varname}};
 	outfile_{{varname}}.open("results/{{varname}}", ios::binary | ios::out);
 	if(outfile_{{varname}}.is_open())
@@ -135,7 +135,7 @@ void _write_arrays()
 	}
 	{% endfor %}
 
-	{% for var, varname in dynamic_array_2d_specs.items() | sort %}
+	{% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
 	ofstream outfile_{{varname}};
 	outfile_{{varname}}.open("results/{{varname}}", ios::binary | ios::out);
 	if(outfile_{{varname}}.is_open())
@@ -156,7 +156,7 @@ void _dealloc_arrays()
 {
 	using namespace brian;
 
-	{% for var, varname in array_specs.items() | sort %}
+	{% for var, varname in array_specs | dictsort(by='value') %}
 	{% if not var in dynamic_array_specs %}
 	if({{varname}}!=0)
 	{
@@ -206,12 +206,12 @@ extern Network {{net.name}};
 {% endfor %}
 
 //////////////// dynamic arrays ///////////
-{% for var, varname in dynamic_array_specs.items() | sort %}
+{% for var, varname in dynamic_array_specs | dictsort(by='value') %}
 extern std::vector<{{c_data_type(var.dtype)}}> {{varname}};
 {% endfor %}
 
 //////////////// arrays ///////////////////
-{% for var, varname in array_specs.items() | sort %}
+{% for var, varname in array_specs | dictsort(by='value') %}
 {% if not var in dynamic_array_specs %}
 extern {{c_data_type(var.dtype)}} *{{varname}};
 extern const int _num_{{varname}};
@@ -219,7 +219,7 @@ extern const int _num_{{varname}};
 {% endfor %}
 
 //////////////// dynamic arrays 2d /////////
-{% for var, varname in dynamic_array_2d_specs.items() | sort %}
+{% for var, varname in dynamic_array_2d_specs | dictsort(by='value') %}
 extern DynamicArray2D<{{c_data_type(var.dtype)}}> {{varname}};
 {% endfor %}
 

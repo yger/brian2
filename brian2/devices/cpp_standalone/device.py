@@ -7,7 +7,6 @@ import shutil
 import subprocess
 import inspect
 from collections import defaultdict
-import glob
 
 from brian2.core.clocks import defaultclock
 from brian2.core.network import Network
@@ -17,7 +16,7 @@ from brian2.synapses.synapses import Synapses
 from brian2.utils.filetools import copy_directory, ensure_directory, in_directory
 from brian2.utils.stringtools import word_substitute
 from brian2.codegen.generators.cpp_generator import c_data_type
-from brian2.units.fundamentalunits import Quantity
+from brian2.units.fundamentalunits import Quantity, have_same_dimensions
 from brian2.units import second
 from brian2.utils.logger import get_logger
 
@@ -61,6 +60,10 @@ class CPPWriter(object):
             if open(fullfilename, 'r').read()==contents:
                 return
         open(fullfilename, 'w').write(contents)
+        
+        
+def invert_dict(x):
+    return dict((v, k) for k, v in x.iteritems())
 
 
 class CPPStandaloneDevice(Device):
@@ -184,6 +187,9 @@ class CPPStandaloneDevice(Device):
         value = Quantity(value)
 
         if value.size == 1 and item == 'True':  # set the whole array to a scalar value
+            if have_same_dimensions(value, 1):
+                # Avoid a representation as "Quantity(...)" or "array(...)"
+                value = float(value)
             group.set_with_expression_conditional(variable_name, variable,
                                                   cond=item,
                                                   code=repr(value),
@@ -293,6 +299,8 @@ class CPPStandaloneDevice(Device):
             
         logger.debug("Writing C++ standalone project to directory "+os.path.normpath(project_dir))
 
+        self.arange_arrays.sort(key=lambda (var, start): var.name)
+
         # # Find numpy arrays in the namespaces and convert them into static
         # # arrays. Hopefully they are correctly used in the code: For example,
         # # this works for the namespaces for functions with C++ (e.g. TimedArray
@@ -314,17 +322,18 @@ class CPPStandaloneDevice(Device):
         # Write the global objects
         networks = [net() for net in Network.__instances__() if net().name!='_fake_network']
         synapses = [S() for S in Synapses.__instances__()]
-        arr_tmp = CPPStandaloneCodeObject.templater.objects(None,
-                                                            array_specs=self.arrays,
-                                                            dynamic_array_specs=self.dynamic_arrays,
-                                                            dynamic_array_2d_specs=self.dynamic_arrays_2d,
-                                                            zero_arrays=self.zero_arrays,
-                                                            arange_arrays=self.arange_arrays,
-                                                            synapses=synapses,
-                                                            clocks=self.clocks,
-                                                            static_array_specs=static_array_specs,
-                                                            networks=networks,
-                                                            )
+        arr_tmp = CPPStandaloneCodeObject.templater.objects(
+                        None,
+                        array_specs=self.arrays,
+                        dynamic_array_specs=self.dynamic_arrays,
+                        dynamic_array_2d_specs=self.dynamic_arrays_2d,
+                        zero_arrays=self.zero_arrays,
+                        arange_arrays=self.arange_arrays,
+                        synapses=synapses,
+                        clocks=self.clocks,
+                        static_array_specs=static_array_specs,
+                        networks=networks,
+                        )
         writer.write('objects.*', arr_tmp)
 
         main_lines = []
@@ -398,6 +407,11 @@ class CPPStandaloneDevice(Device):
                                        attrname=v.attribute)
                     code_object_defs[codeobj.name].append(line)
                 elif isinstance(v, ArrayVariable):
+                    # Do not generate code for arrays twice.
+                    if k in handled_arrays[codeobj.name]:
+                        continue
+                    else:
+                        handled_arrays[codeobj.name].add(k)
                     try:
                         if isinstance(v, DynamicArrayVariable):
                             if v.dimensions == 1:
