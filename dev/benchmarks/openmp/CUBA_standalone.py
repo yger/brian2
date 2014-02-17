@@ -14,7 +14,7 @@ if standalone == 1:
     set_device('cpp_standalone')
 
 start      = time.time()
-n_cells    = 10000
+n_cells    = 1000
 n_exc      = int(0.8*n_cells)
 p_conn     = 0.1
 taum       = 20 * ms
@@ -57,4 +57,4 @@ net = Network(P, Se, Si, spike_mon, name='stdp_net')
 
 net.run(1 * second)
 if standalone == 1:
-    device.build(project_dir='data_cuba_%d' %n_threads, compile_project=True, run_project=True, debug=True, n_threads=n_threads)
+    device.build(project_dir='data_cuba_%d' %n_threads, compile_project=True, run_project=True, debug=False, n_threads=n_threads)
