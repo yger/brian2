@@ -27,15 +27,20 @@ void Network::run(double duration)
 	compute_clocks();
 	// set interval for all clocks
 
-	for(std::set<Clock*>::iterator i=clocks.begin(); i!=clocks.end(); i++)
+	#pragma omp single
 	{
-		(*i)->set_interval(t, t_end);
+		for(std::set<Clock*>::iterator i=clocks.begin(); i!=clocks.end(); i++)
+		{
+			(*i)->set_interval(t, t_end);
+		}
 	}
 
 	Clock* clock = next_clocks();
 	
 	#pragma omp parallel
 	{
+		#pragma omp master
+		std::cout << "OpenMP is running with " << omp_get_num_threads() << " threads" << std::endl;
 		while(clock->running())
 		{
 			for(int i=0; i<objects.size(); i++)

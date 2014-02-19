@@ -402,7 +402,7 @@ class CPPStandaloneDevice(Device):
             for k, v in codeobj.variables.iteritems():
                 if isinstance(v, AttributeVariable):
                     # We assume all attributes are implemented as property-like methods
-                    line = 'const {c_type} {varname} = {objname}.{attrname}();'
+                    line = '\tconst {c_type} {varname} = {objname}.{attrname}();'
                     line = line.format(c_type=c_data_type(v.dtype), varname=k, objname=v.obj.name,
                                        attrname=v.attribute)
                     code_object_defs[codeobj.name].append(line)
@@ -417,15 +417,16 @@ class CPPStandaloneDevice(Device):
                             if v.dimensions == 1:
                                 dyn_array_name = self.dynamic_arrays[v]
                                 array_name = self.arrays[v]
-                                line = '{c_type}* const {array_name} = &{dyn_array_name}[0];'
+                                line = '\t{c_type}* const {array_name} = &{dyn_array_name}[0];'
                                 line = line.format(c_type=c_data_type(v.dtype), array_name=array_name,
                                                    dyn_array_name=dyn_array_name)
-                                code_object_defs[codeobj.name].append(line)
-                                line = 'const int _num{k} = {dyn_array_name}.size();'
+                                if not line in code_object_defs[codeobj.name]: 
+                                    code_object_defs[codeobj.name].append(line)
+                                line = '\tconst int32_t _num{k} = {dyn_array_name}.size();'
                                 line = line.format(k=k, dyn_array_name=dyn_array_name)
                                 code_object_defs[codeobj.name].append(line)
                         else:
-                            code_object_defs[codeobj.name].append('const int _num%s = %s;' % (k, v.size))
+                            code_object_defs[codeobj.name].append('\tconst int32_t _num%s = %s;' % (k, v.size))
                     except TypeError:
                         pass
 

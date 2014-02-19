@@ -4,9 +4,9 @@
 	//// MAIN CODE ////////////
     {# USES_VARIABLES { t, i, _clock_t, _spikespace, _count,
                         _source_start, _source_stop} #}
-	int _num_spikes = {{_spikespace}}[_num_spikespace-1];
+	int32_t _num_spikes = {{_spikespace}}[_num_spikespace-1];
     
-    #pragma omp single
+    #pragma omp master
     {
         if (_num_spikes > 0)
         {

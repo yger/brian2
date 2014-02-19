@@ -2,8 +2,8 @@
 {% block maincode %}
 	{# USES_VARIABLES { _spikespace, N } #}
 
-	const int *_spikes = {{_spikespace}};
-	const int _num_spikes = {{_spikespace}}[N];
+	const int32_t *_spikes = {{_spikespace}};
+	const int32_t _num_spikes = {{_spikespace}}[N];
 
 	//// MAIN CODE ////////////
 	#pragma omp for schedule(static)

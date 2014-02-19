@@ -5,12 +5,11 @@
 	// Thresholder class, we cannot use the USES_VARIABLE mechanism
 	// conditionally
 
-	//// MAIN CODE ////////////
-	//long _cpp_numspikes = 0;
-	{{_spikespace}}[N] = 0;
-	
-	#pragma omp single 
+	//// MAIN CODE ////////////	
+	#pragma omp master 
 	{
+		{{_spikespace}}[N] = 0;
+		
 		for(int _idx=0; _idx<N; _idx++)
 		{
 		    const int _vectorisation_idx = _idx;
@@ -29,6 +28,4 @@
 			}
 		}
 	}
-	//{{_spikespace}}[N] = _cpp_numspikes;
-	//}
 {% endblock %}
