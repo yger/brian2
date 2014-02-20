@@ -5,27 +5,34 @@
 	// Thresholder class, we cannot use the USES_VARIABLE mechanism
 	// conditionally
 
-	//// MAIN CODE ////////////	
-	#pragma omp single 
+	//// MAIN CODE ////////////		
+	#pragma omp for schedule(static)
+	for(int _idx=0; _idx<N; _idx++)
 	{
-		{{_spikespace}}[N] = 0;
-		
-		for(int _idx=0; _idx<N; _idx++)
-		{
-		    const int _vectorisation_idx = _idx;
-			{% for line in code_lines %}
-			{{line}}
-			{% endfor %}
-			if(_cond) {
-				{{_spikespace}}[{{_spikespace}}[N]++] = _idx;
-				{% if _uses_refractory %}
-				// We have to use the pointer names directly here: The condition
-				// might contain references to not_refractory or lastspike and in
-				// that case the names will refer to a single entry.
-				{{not_refractory}}[_idx] = false;
-				{{lastspike}}[_idx] = t;
-				{% endif %}
-			}
+	    const int _vectorisation_idx = _idx;
+		{% for line in code_lines %}
+		{{line}}
+		{% endfor %}
+		if(_cond) {
+			{% if _uses_refractory %}
+			// We have to use the pointer names directly here: The condition
+			// might contain references to not_refractory or lastspike and in
+			// that case the names will refer to a single entry.
+			{{not_refractory}}[_idx] = false;
+			{{lastspike}}[_idx] = t;
+			{% endif %}
 		}
 	}
+	
+	#pragma omp single
+	{
+		int count = 0;
+		for(int _idx=0; _idx<N; _idx++)
+		{
+			if ({{lastspike}}[_idx] == t)
+				{{_spikespace}}[count++] = _idx;
+		}
+		{{_spikespace}}[N] = count;
+	}
+
 {% endblock %}
