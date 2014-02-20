@@ -14,10 +14,10 @@ if standalone == 1:
     set_device('cpp_standalone')
 
 start      = time.time()
-n_cells    = 10
+n_cells    = 1000
 
 numpy.random.seed(42)
-connectivity = numpy.abs(numpy.random.randn(n_cells, n_cells))
+connectivity = numpy.random.randn(n_cells, n_cells)
 
 taum       = 20 * ms
 taus       = 5 * ms
@@ -32,13 +32,13 @@ dApre      = .01
 taupre     = 20 * ms
 taupost    = taupre
 dApost     = -dApre * taupre / taupost * 1.05
-dApost    *=  gmax
-dApre     *=  gmax
+dApost    *=  0.1*gmax
+dApre     *=  0.1*gmax
 
 
 eqs  = Equations('''
 dv/dt  = (g-(v-El))/taum : volt
-dg/dt = -g/taus : volt
+g                        : volt
 ''')
 
 P    = NeuronGroup(n_cells, model=eqs, threshold='v>Vt', reset='v=Vr', refractory=5 * ms)
@@ -50,20 +50,22 @@ P.g  = 0 * mV
 S    = Synapses(P, P, 
                     model = '''dApre/dt=-Apre/taupre    : 1 (event-driven)    
                                dApost/dt=-Apost/taupost : 1 (event-driven)
-                               w                        : 1''', 
-                    pre = '''g += w*mV
-                             Apre += dApre
-                             w = clip(w + Apost, 0, gmax)''',
+                               w                        : 1
+                               dg/dt = -g/taus          : volt
+                               g_post = g               : volt (summed)''', 
+                    pre = '''g     += w*mV
+                             Apre  += dApre
+                             w      = w + Apost''',
                     post = '''Apost += dApost
-                             w = clip(w + Apre, 0, gmax)''',
+                              w      = w + Apre''',
                     connect=True)
 S.w  = fac*connectivity.flatten()
 
 
 spike_mon = SpikeMonitor(P)
-state_mon = StateMonitor(S, 'w', record=range(n_cells*n_cells), when=Clock(dt=0.1*second))
-v_mon     = StateMonitor(P, 'v', record=True)
+state_mon = StateMonitor(S, 'w', record=range(10), when=Clock(dt=0.1*second))
+v_mon     = StateMonitor(P, 'v', record=range(10))
 
-run(0.5 * second)
+run(1 * second)
 if standalone == 1:
     device.build(project_dir='data_example_%d' %n_threads, compile_project=True, run_project=True, debug=False, n_threads=n_threads)

@@ -6,7 +6,7 @@
 	// conditionally
 
 	//// MAIN CODE ////////////	
-	#pragma omp master 
+	#pragma omp single 
 	{
 		{{_spikespace}}[N] = 0;
 		

@@ -17,7 +17,7 @@ start      = time.time()
 n_cells    = 1000
 
 numpy.random.seed(42)
-connectivity = numpy.abs(numpy.random.randn(n_cells, n_cells))
+connectivity = numpy.random.randn(n_cells, n_cells)
 
 taum       = 20 * ms
 taus       = 5 * ms
@@ -53,9 +53,9 @@ S    = Synapses(P, P,
                                w                        : 1''', 
                     pre = '''g     += w*mV
                              Apre  += dApre
-                             w      = clip(w + Apost, 0, gmax)''',
+                             w      = w + Apost''',
                     post = '''Apost += dApost
-                              w      = clip(w + Apre, 0, gmax)''',
+                              w      = w + Apre''',
                     connect=True)
 S.w  = fac*connectivity.flatten()
 
@@ -64,6 +64,6 @@ spike_mon = SpikeMonitor(P)
 state_mon = StateMonitor(S, 'w', record=range(10), when=Clock(dt=0.1*second))
 v_mon     = StateMonitor(P, 'v', record=range(10))
 
-run(0.1 * second)
+run(1 * second)
 if standalone == 1:
     device.build(project_dir='data_example_bis_%d' %n_threads, compile_project=True, run_project=True, debug=False, n_threads=n_threads)

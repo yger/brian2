@@ -9,7 +9,7 @@
 	for (int _target_idx=0; _target_idx<N_post; _target_idx++)
 	    {{_target_var_array}}[_target_idx] = 0.0;
 	
-	#pragma omp master
+	#pragma omp single
 	{
 		for(int _idx=0; _idx<_num_synaptic_post; _idx++)
 		{
