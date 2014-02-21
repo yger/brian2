@@ -8,7 +8,7 @@
 	//// MAIN CODE ////////////		
 	#pragma omp single
 	{
-		{{_spikespace}}[{{_spikespace}}[N]] = 0;
+		{{_spikespace}}[N] = 0;
 
 		for(int _idx=0; _idx<N; _idx++)
 		{
