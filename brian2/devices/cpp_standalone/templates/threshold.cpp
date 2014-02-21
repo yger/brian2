@@ -8,6 +8,8 @@
 	//// MAIN CODE ////////////		
 	#pragma omp single
 	{
+		{{_spikespace}}[{{_spikespace}}[N]] = 0;
+
 		for(int _idx=0; _idx<N; _idx++)
 		{
 		    const int _vectorisation_idx = _idx;
