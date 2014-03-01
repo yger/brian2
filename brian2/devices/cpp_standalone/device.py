@@ -473,6 +473,9 @@ class CPPStandaloneDevice(Device):
         spikequeue_h = os.path.join(project_dir, 'brianlib', 'spikequeue.h')
         shutil.copy2(os.path.join(os.path.split(inspect.getsourcefile(Synapses))[0], 'cspikequeue.cpp'),
                      spikequeue_h)
+        queuefile = '%s/brianlib/spikequeue.h' %project_dir
+        os.system('''sed -i -e '1iconst int OMP_NB_THREADS=%d;\' %s''' %(self.n_threads, queuefile)) 
+
         #writer.header_files.append(spikequeue_h)
         
         writer.source_files.extend(additional_source_files)

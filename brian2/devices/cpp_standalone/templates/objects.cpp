@@ -101,7 +101,7 @@ void _load_arrays()
 		std::cout << "Error opening static array {{name}}." << endl;
 	}
 	{% endfor %}
-}
+}	
 
 void _write_arrays()
 {

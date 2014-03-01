@@ -3,12 +3,7 @@
 {% block maincode %}
     #include<iostream>
 	{# USES_VARIABLES { _synaptic_pre, _synaptic_post, rand} #}
-	//int _synapse_idx = {{_dynamic__synaptic_pre}}.size();
     
-    std::vector<int32_t> _local_pre;
-	std::vector<int32_t> _local_post;
-
-    #pragma omp for schedule(static)
     for(int i=0; i<_num_all_pre; i++)
 	{
 		for(int j=0; j<_num_all_post; j++)
@@ -35,18 +30,11 @@
 			            continue;
 			    }
 			    for (int _repetition=0; _repetition<_n; _repetition++) {
-			    	_local_pre.push_back(_pre_idx);
-			    	_local_post.push_back(_post_idx);
-                    //_synapse_idx++;
+			    	{{_dynamic__synaptic_pre}}.push_back(_pre_idx);
+			    	{{_dynamic__synaptic_post}}.push_back(_post_idx);
                 }
 			}
 		}
-	}
-
-	#pragma omp ordered
-	{
-		{{_dynamic__synaptic_pre}}.insert({{_dynamic__synaptic_pre}}.end(), _local_pre.begin(), _local_pre.end());
-		{{_dynamic__synaptic_post}}.insert({{_dynamic__synaptic_post}}.end(), _local_post.begin(), _local_post.end());
 	}
 
 	// now we need to resize all registered variables

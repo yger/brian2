@@ -23,12 +23,8 @@ void _run_{{codeobj_name}}()
     //// MAIN CODE ////////////
 	// we do advance at the beginning rather than at the end because it saves us making
 	// a copy of the current spiking synapses
-	#pragma omp single
-	{
-		{{owner.name}}.queue->advance();
-		{{owner.name}}.queue->push({{_spikespace}}, {{_spikespace}}[{{owner.source|length}}]);
-	}
-
+	{{owner.name}}.advance();
+	{{owner.name}}.push({{_spikespace}}, {{_spikespace}}[{{owner.source|length}}]);
 	//{{owner.name}}.queue->peek();
 }
 {% endmacro %}

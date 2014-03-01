@@ -12,7 +12,7 @@
 
 	// This is only needed for the _debugmsg function below	
 	{# USES_VARIABLES { _synaptic_pre } #}
-	std::vector<int> *_spiking_synapses = {{pathway.name}}.queue->peek();
+	std::vector<int> *_spiking_synapses = {{pathway.name}}.peek();
 	const unsigned int _num_spiking_synapses = _spiking_synapses->size();
 
 	{% if _non_synaptic %}

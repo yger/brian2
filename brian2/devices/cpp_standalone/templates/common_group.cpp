@@ -22,7 +22,7 @@ namespace {
 {% endfor %}
 
 void _run_{{codeobj_name}}()
-{
+{	
 	using namespace brian;
 	///// CONSTANTS ///////////
 	%CONSTANTS%
