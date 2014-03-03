@@ -24,7 +24,6 @@ public:
 		: Nsource(_Nsource), Ntarget(_Ntarget), delay(_delay), sources(_sources), dt(_dt)
 	{
 		_nb_threads = nb_threads;
-		//std::cout << "Constructing SynapticPathway with " << _nb_threads << " threads" << std::endl;
 		omp_set_dynamic(0);
 		for (int _idx=0; _idx < _nb_threads; _idx++)
 			queue.push_back(new CSpikeQueue<scalar>(_spikes_start, _spikes_stop));
@@ -72,19 +71,6 @@ public:
 
     		unsigned int length   = (unsigned int) n_synapses/_nb_threads;
     		unsigned int padding  = omp_get_thread_num()*length;
-
-    		//scalar * _loc_delays  = &real_delays[padding];
-		    //int32_t* _loc_sources = &sources[padding];
-            
-            /*
-		    #pragma omp critical
-		    {
-		    	std::cout << "Preparing SynapticPathway with " << _nb_threads << " threads" << std::endl;
-    			std::cout << "Node " << omp_get_thread_num() << " " << padding << "-" << padding+length << std::endl;
-                //for (int _idx=padding; _idx < padding+length; _idx++)
-                //    std::cout << real_delays[_idx] << " " << sources[_idx] << std::endl;
-    		}
-            */
 
             queue[omp_get_thread_num()]->openmp_padding = padding;
     		queue[omp_get_thread_num()]->prepare(&real_delays[padding], &sources[padding], length, _dt);

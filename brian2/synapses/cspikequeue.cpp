@@ -62,22 +62,8 @@ public:
         for (unsigned int i=0; i<n_synapses; i++)
         {
             delays[i] =  (int)(real_delays[i] / _dt + 0.5); //round to nearest int
-            synapses[sources[i] - source_start].push_back(i+openmp_padding);
+            synapses[sources[i] - source_start].push_back(i + openmp_padding);
         }
-
-        /*
-        #pragma omp critical 
-        {
-            std::cout << "Node " << omp_get_thread_num() << std::endl;
-            for (int _idx=0; _idx < source_end - source_start; _idx++)
-                {
-                    std::cout << "Neuron " << _idx << std::endl;
-                    for (int i=0; i < synapses[_idx].size(); i++)
-                        std::cout << synapses[_idx][i] << " ";
-                    std:cout << std::endl;
-                }
-        }   
-        */
 
         dt = _dt;
     }
