@@ -54,7 +54,7 @@ SynapticPathway<double> brian::{{path.name}}(
 		{{dynamic_array_specs[path.variables['delay']]}},
 		{{dynamic_array_specs[path.synapse_sources]}},
 		{{path.source.dt_}},
-		{{path.source.start}}, {{path.source.stop}}
+		{{path.source.start}}, {{path.source.stop}}, {{nb_threads}}
 		);
 {% endfor %}
 {% endfor %}

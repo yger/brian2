@@ -14,17 +14,17 @@ class SynapticPathway
 {
 public:
 	int Nsource, Ntarget, _nb_threads;
-	std::vector<scalar>& delay;
+	std::vector<scalar> &delay;
 	std::vector<int> &sources;
 	std::vector<int> all_peek;
 	scalar dt;
 	std::vector< CSpikeQueue<scalar> * > queue;
 	SynapticPathway(int _Nsource, int _Ntarget, std::vector<scalar>& _delay, std::vector<int> &_sources,
-					scalar _dt, int _spikes_start, int _spikes_stop)
+					scalar _dt, int _spikes_start, int _spikes_stop, int nb_threads)
 		: Nsource(_Nsource), Ntarget(_Ntarget), delay(_delay), sources(_sources), dt(_dt)
 	{
-		_nb_threads = OMP_NB_THREADS;
-		std::cout << "Constructing SynapticPathway with " << _nb_threads << " threads" << std::endl;
+		_nb_threads = nb_threads;
+		//std::cout << "Constructing SynapticPathway with " << _nb_threads << " threads" << std::endl;
 		omp_set_dynamic(0);
 		for (int _idx=0; _idx < _nb_threads; _idx++)
 			queue.push_back(new CSpikeQueue<scalar>(_spikes_start, _spikes_stop));
@@ -50,14 +50,16 @@ public:
     	queue[omp_get_thread_num()]->advance();
     }
 
-	inline vector<DTYPE_int>* peek()
+	vector<DTYPE_int>* peek()
     {
     	#pragma omp single
     	{
     		all_peek.clear();
     		for (int _idx=0; _idx < _nb_threads; _idx++)
-    			all_peek.insert(all_peek.begin(), queue[_idx]->peek()->begin(), queue[_idx]->peek()->end());
+    			all_peek.insert(all_peek.end(), queue[_idx]->peek()->begin(), queue[_idx]->peek()->end());
     	}
+        
+
     	return &all_peek;
     }
 
@@ -68,19 +70,24 @@ public:
     	{
     		omp_set_num_threads(_nb_threads);
 
-    		unsigned int length   = n_synapses/_nb_threads;
+    		unsigned int length   = (unsigned int) n_synapses/_nb_threads;
     		unsigned int padding  = omp_get_thread_num()*length;
 
-    		double * _loc_delays  = &real_delays[padding];
-		    int32_t* _loc_sources = &sources[padding];
-
+    		//scalar * _loc_delays  = &real_delays[padding];
+		    //int32_t* _loc_sources = &sources[padding];
+            
+            /*
 		    #pragma omp critical
 		    {
 		    	std::cout << "Preparing SynapticPathway with " << _nb_threads << " threads" << std::endl;
-    			std::cout << "Node " << omp_get_thread_num() << " " << length << "," << padding << std::endl;
+    			std::cout << "Node " << omp_get_thread_num() << " " << padding << "-" << padding+length << std::endl;
+                //for (int _idx=padding; _idx < padding+length; _idx++)
+                //    std::cout << real_delays[_idx] << " " << sources[_idx] << std::endl;
     		}
+            */
 
-    		queue[omp_get_thread_num()]->prepare(_loc_delays, _loc_sources, length, _dt);
+            queue[omp_get_thread_num()]->openmp_padding = padding;
+    		queue[omp_get_thread_num()]->prepare(&real_delays[padding], &sources[padding], length, _dt);
     	}
     }
 
