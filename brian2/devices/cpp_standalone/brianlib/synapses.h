@@ -58,7 +58,6 @@ public:
     			all_peek.insert(all_peek.end(), queue[_idx]->peek()->begin(), queue[_idx]->peek()->end());
     	}
         
-
     	return &all_peek;
     }
 
@@ -68,9 +67,13 @@ public:
     	#pragma omp parallel 
     	{
     		omp_set_num_threads(_nb_threads);
-
-    		unsigned int length   = (unsigned int) n_synapses/_nb_threads;
-    		unsigned int padding  = omp_get_thread_num()*length;
+            unsigned int length;
+            if (omp_get_thread_num() == _nb_threads - 1)
+        		length = n_synapses - (unsigned int) omp_get_thread_num()*n_synapses/_nb_threads;
+            else
+                length = (unsigned int) n_synapses/_nb_threads;
+    		
+            unsigned int padding  = omp_get_thread_num()*length;
 
             queue[omp_get_thread_num()]->openmp_padding = padding;
     		queue[omp_get_thread_num()]->prepare(&real_delays[padding], &sources[padding], length, _dt);
